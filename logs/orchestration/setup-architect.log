@@ -1,0 +1,29 @@
+# setup-architect  @ 2026-07-19T19:21:20Z
+# cwd: /Users/siyua/dev/erdos477-FORM
+# output_format: text
+
+All scaffolding files are written and consistent. Here's the summary.
+
+## Scaffolding complete — Erdős Problem 477 (thirteenth powers tile ℤ)
+
+**Files written** (in `/Users/siyua/dev/erdos477-FORM/`):
+- `BLUEPRINT.md` — full decomposition, same section structure as the reference
+- `PROGRESS.md`, `TASKS.md`, `REVIEW.md` — headers only (no log entries; init.py adds the first)
+- `scripts/verify.sh` — reference harness, all five checks intact, executable (`bash -n` clean)
+- `scripts/frozen.sha256` — placeholder comment line
+- `USER_NOTES.md` — **not touched** (user-owned)
+
+**(a) Project source-dir / namespace:** `Erdos477` (sources under `Erdos477/`, root import `Erdos477.lean`, all support in `namespace Erdos477`).
+
+**(b) Frozen theorem names** (binding — mirrored in `verify.sh`'s `ALL_THEOREMS`), one per proof layer:
+1. `no_linear_param` — L2.1, exclusion of linear parametrisations (Route B, elementary)
+2. `badShift_bound` — P3.1, the `|S_c(T)| ≤ K_c·T^{5/6}` estimate (the heart; sole axiom consumer)
+3. `greedy_tiling` — L4.1, the abstract greedy tiling criterion (independent milestone)
+4. `criterion_holds` — P5.1, `Bset` satisfies the criterion
+5. `erdos_477` — the headline `∃ A, ∀ n, ∃! (a,m), a∈A ∧ a + m^13 = n`
+
+Frozen `Defs.lean` objects: `Bset`, `Dset`, `Qcof`, `Sset`, and the assumed-certificate `axiom heath_brown_diagonal_13` (conditional form). Stages A–F map to `Proofs/Elementary|Cofactor|ParamExclusion|Greedy|BadShift|Assembly/`, each with a problem-specific Cheat-watch box (exponent-slack, dropped `u≠v`, uniqueness erosion, strict pigeonhole, conditional-axiom smuggling).
+
+**⚠️ One blocking issue I flagged prominently (not silently worked around):** `USER_NOTES.md` currently says **"None — no assumed axioms,"** but `SKETCH.md` §3 requires Heath-Brown's determinant-method count to be an `axiom` — the bad-shift layer and headline are provably impossible without it. I could not (and did not) edit the user-owned `USER_NOTES.md`. The blueprint is written for the mathematically necessary configuration and carries a bold **"USER ACTION REQUIRED"** callout: before running init.py, the user must add `heath_brown_diagonal_13` to the Allowed-axioms section, or only Stages A–D + `no_linear_param` are achievable and `badShift_bound`/`criterion_holds`/`erdos_477` stay blocked.
+
+# exit=0 timed_out=False @ 2026-07-19T19:28:43Z

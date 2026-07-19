@@ -1,0 +1,28 @@
+# init-step-minus1  @ 2026-07-19T19:34:38Z
+# cwd: /Users/siyua/dev/erdos477-FORM
+# output_format: text
+
+Step -1 (SETUP) is complete. Everything the BLUEPRINT's "Part -1" prescribes is in place, and no Stage A+ proof was written — every frozen theorem remains `:= sorry`.
+
+## Summary
+
+**Project name:** `Erdos477` (namespace `Erdos477`), built in-place in `/Users/siyua/dev/erdos477-FORM`.
+
+**Frozen theorem names** (all `:= sorry` in `Erdos477/Theorems.lean`):
+- `no_linear_param` — degree-≤1 parametrisation exclusion (feeds the axiom's `hexcl`)
+- `badShift_bound` — the `|S_c(T)| ≤ K·T^(5/6)` estimate
+- `greedy_tiling` — the abstract combinatorial tiling criterion (`∃!`)
+- `criterion_holds` — `Bset` satisfies the criterion
+- `erdos_477` — the headline: thirteenth powers tile ℤ (`∃!` over `(a,m)`)
+
+**Frozen definitions + axioms** (`Erdos477/Defs.lean`, SHA-pinned): `Bset`, `Dset`, `Qcof`, `Sset`, plus **both** axioms USER_NOTES.md permitted — `heath_brown_diagonal_13` (conditional Heath-Brown count, consumed by `badShift_bound`) and `brownawell_masser_P1_four_term` (BM4 four-term S-unit inequality, available for the paper-faithful Route A; expected unused by Route B). Both are listed by fully-qualified name in `scripts/ALLOWED_AXIOMS.txt`.
+
+**Skeleton builds:** `lake build` → "Build completed successfully (8569 jobs)", with **only the 5 expected `declaration uses 'sorry'` warnings** from `Theorems.lean` — no errors, no other warnings.
+
+**verify.sh:** Checks **1 (SHA pins), 2 (banned keywords — `sorry` only in Theorems.lean, both axioms whitelisted), 3 (clean build) PASS**. Checks 4/5 don't pass yet (no `Erdos477.Solution.*` theorems exist while everything is `sorry`) — expected at this stage.
+
+**One deviation, logged in PROGRESS.md:** BLUEPRINT's suggested `v4.15.0` pin was replaced by **v4.31.0** (toolchain + Mathlib rev), because v4.15.0's prebuilt `cache` binary fails to run on this macOS (Darwin 25 / Tahoe) with a dyld `SG_READ_ONLY` error; v4.31.0 is stable, has a matching Mathlib rev, and `lake exe cache get` succeeds — consistent with BLUEPRINT's "any recent toolchain with a matching Mathlib rev is fine" clause.
+
+`Defs.lean`/`Theorems.lean` are byte-frozen (pinned in `scripts/frozen.sha256`) and must not be edited during the proving phase.
+
+# exit=0 timed_out=False @ 2026-07-19T19:47:48Z

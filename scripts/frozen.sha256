@@ -1,0 +1,4 @@
+# SHA-256 pins of the frozen sources (recorded by the SETUP/init agent).
+# Format: '<sha256>  <relative/path>' — read by scripts/verify.sh Check 1.
+42a2e9882a7e5d399d088f22cd581df5afc7640ff54561f9b9bdace8f94c1974  Erdos477/Defs.lean
+26981420f09db8bb83f732917144979eee3659d7a35a0c6cfde2ea2884a39d4a  Erdos477/Theorems.lean

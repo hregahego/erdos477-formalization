@@ -1,0 +1,9 @@
+# iter001-worker2  @ 2026-07-19T20:15:56Z
+# cwd: /Users/siyua/dev/erdos477-FORM
+# output_format: text
+
+Stage A is complete and verified.
+
+**Report.** I took the Agent-2 assignment (BLUEPRINT Stage A, items A1–A6 = SKETCH §2) and proved all six as named, sorry-free lemmas in `Erdos477/Proofs/Elementary/Basic.lean` — the only file I touched (no new files, so `Erdos477.lean` was left alone, and I never opened `Defs.lean`/`Theorems.lean` for editing). Delivered: `zero_mem_B`/`zero_mem_D` (witnesses `m = 0`, `u = v = 0`); `dset_neg` proved honestly by *swapping* the two witnesses `u,v` rather than by odd-power sign manipulation; `pow13_inj` as a **global** `Function.Injective (fun m : ℤ => m ^ 13)` via odd-power strict monotonicity — the correct Mathlib name at this rev (v4.31.0) turned out to be `Odd.strictMono_pow` (`Mathlib/Algebra/Order/Ring/Basic.lean:178`), not the `Odd.pow_right_strictMono`/`Odd.pow_left_injective` guesses in the blueprint — plus the two downstream corollaries `pow13_eq_iff` and `pow13_eq_neg` (via `Odd.neg_pow`); `not_B_ne_zero`; `mem_D_symm_shift` from `dset_neg` in both directions; and `dset_eq_sub` as a genuine `Set.ext` **equality** with both inclusions proved, the bridge Stage F needs between the concrete `Dset` and the abstract `B − B` in `greedy_tiling`. `lake build Erdos477.Proofs.Elementary.Basic` completes with no errors or warnings, and `#print axioms` on each of the nine declarations lands strictly inside `{propext, Classical.choice, Quot.sound}` — neither assumed certificate appears. PROGRESS.md has the `🔧` claim and the final `✅` entry naming every lemma for Stages C/E/F. No blockers.
+
+# exit=0 timed_out=False @ 2026-07-19T20:18:13Z

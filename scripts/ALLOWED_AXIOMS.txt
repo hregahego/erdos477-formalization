@@ -1,0 +1,17 @@
+# Axiom allowlist for verify.sh (Checks 2 and 4).
+#
+# Fully-qualified names of the assumed-certificate axioms the user permitted in
+# USER_NOTES.md and that init/SETUP declared in Erdos477/Defs.lean. verify.sh
+# permits EXACTLY these (plus the standard three: propext, Classical.choice,
+# Quot.sound) and BANS every other axiom. Comma- or newline-separated; lines
+# starting with '#' are comments.
+#
+# These names must match the `axiom` declarations in Defs.lean and what
+# `#print axioms` reports for the Solution theorems.
+
+# Heath-Brown determinant-method count (paper Thm 2.2) — used by badShift_bound.
+Erdos477.heath_brown_diagonal_13
+
+# Four-term Brownawell–Masser S-unit inequality on ℙ¹ (paper Thm 2.1) —
+# available for the paper-faithful Route A; unused if Route B succeeds.
+Erdos477.brownawell_masser_P1_four_term

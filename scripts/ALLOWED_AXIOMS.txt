@@ -1,17 +1,18 @@
 # Axiom allowlist for verify.sh (Checks 2 and 4).
 #
 # Fully-qualified names of the assumed-certificate axioms the user permitted in
-# USER_NOTES.md and that init/SETUP declared in Erdos477/Defs.lean. verify.sh
+# USER_NOTES.md and that SETUP declared in Erdos477/Defs.lean. verify.sh
 # permits EXACTLY these (plus the standard three: propext, Classical.choice,
 # Quot.sound) and BANS every other axiom. Comma- or newline-separated; lines
 # starting with '#' are comments.
 #
-# These names must match the `axiom` declarations in Defs.lean and what
-# `#print axioms` reports for the Solution theorems.
+# Per USER_NOTES.md BOTH axioms are MANDATORY on the dependency path of the
+# final theorem: #print axioms Erdos477.Solution.erdos_477 must show both.
 
-# Heath-Brown determinant-method count (paper Thm 2.2) — used by badShift_bound.
+# Paper's Theorem 2.2 (Heath-Brown 2009, Thm 2) in FULL GENERALITY —
+# general nonsingular ternary form of degree k >= 3.
 Erdos477.heath_brown_diagonal_13
 
-# Four-term Brownawell–Masser S-unit inequality on ℙ¹ (paper Thm 2.1) —
-# available for the paper-faithful Route A; unused if Route B succeeds.
+# Paper's Theorem 2.1 (Brownawell–Masser on P^1, genus-zero case) in FULL
+# GENERALITY — S-unit height inequality for general r >= 3.
 Erdos477.brownawell_masser_P1_four_term

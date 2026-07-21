@@ -1,29 +1,25 @@
-# setup-architect  @ 2026-07-19T19:21:20Z
-# cwd: /Users/siyua/dev/erdos477-FORM
+# setup-architect  @ 2026-07-20T19:04:05Z
+# cwd: /Users/siyua/dev/erdos477-formalization
 # output_format: text
 
-All scaffolding files are written and consistent. Here's the summary.
+All scaffolding files are written. Summary of what I produced:
 
-## Scaffolding complete — Erdős Problem 477 (thirteenth powers tile ℤ)
+## Scaffolding complete — Erdős Problem 477
 
-**Files written** (in `/Users/siyua/dev/erdos477-FORM/`):
-- `BLUEPRINT.md` — full decomposition, same section structure as the reference
-- `PROGRESS.md`, `TASKS.md`, `REVIEW.md` — headers only (no log entries; init.py adds the first)
-- `scripts/verify.sh` — reference harness, all five checks intact, executable (`bash -n` clean)
-- `scripts/frozen.sha256` — placeholder comment line
-- `USER_NOTES.md` — **not touched** (user-owned)
+Wrote/updated in `/Users/siyua/dev/erdos477-formalization/`:
+- **`BLUEPRINT.md`** — full decomposition (Part −1 SETUP, Part 0 reuse table, Part 1 objects, Part 2 six stages each with a Cheat-watch box, formalization-order diagram, anti-cheat notes)
+- **`PROGRESS.md`**, **`TASKS.md`**, **`REVIEW.md`** — headers only (append-only)
+- **`scripts/verify.sh`** (executable, syntax-checked) + **`scripts/frozen.sha256`** (placeholder)
 
-**(a) Project source-dir / namespace:** `Erdos477` (sources under `Erdos477/`, root import `Erdos477.lean`, all support in `namespace Erdos477`).
+### (a) Project source-dir / namespace
+**`Erdos477`** — layout `Erdos477/{Defs,Theorems,Discharge,Solution}.lean` + `Erdos477/Proofs/{Elementary,Cofactor,ParamExclusion,Greedy,BadShift,Assembly}/Basic.lean`, root `Erdos477.lean`.
 
-**(b) Frozen theorem names** (binding — mirrored in `verify.sh`'s `ALL_THEOREMS`), one per proof layer:
-1. `no_linear_param` — L2.1, exclusion of linear parametrisations (Route B, elementary)
-2. `badShift_bound` — P3.1, the `|S_c(T)| ≤ K_c·T^{5/6}` estimate (the heart; sole axiom consumer)
-3. `greedy_tiling` — L4.1, the abstract greedy tiling criterion (independent milestone)
-4. `criterion_holds` — P5.1, `Bset` satisfies the criterion
-5. `erdos_477` — the headline `∃ A, ∀ n, ∃! (a,m), a∈A ∧ a + m^13 = n`
+### (b) Frozen theorem names (10, in `verify.sh`'s `ALL_THEOREMS`)
+`Dset_neg_mem` · `pow13_injective` · `pow13_sub_pow13_factor` · `cofactor_lower_bound` · `pow13_gap` · `no_linear_param` · `badShift_bound` (heart) · `greedy_tiling` (milestone) · `criterion_for_B` · `erdos_477` (headline).
 
-Frozen `Defs.lean` objects: `Bset`, `Dset`, `Qcof`, `Sset`, and the assumed-certificate `axiom heath_brown_diagonal_13` (conditional form). Stages A–F map to `Proofs/Elementary|Cofactor|ParamExclusion|Greedy|BadShift|Assembly/`, each with a problem-specific Cheat-watch box (exponent-slack, dropped `u≠v`, uniqueness erosion, strict pigeonhole, conditional-axiom smuggling).
+Frozen `Defs.lean` objects: `Bset`, `Dset`, `Qcof`, `Sset`, and the single assumed **`axiom heath_brown_diagonal_13`** (Route B, so no second axiom).
 
-**⚠️ One blocking issue I flagged prominently (not silently worked around):** `USER_NOTES.md` currently says **"None — no assumed axioms,"** but `SKETCH.md` §3 requires Heath-Brown's determinant-method count to be an `axiom` — the bad-shift layer and headline are provably impossible without it. I could not (and did not) edit the user-owned `USER_NOTES.md`. The blueprint is written for the mathematically necessary configuration and carries a bold **"USER ACTION REQUIRED"** callout: before running init.py, the user must add `heath_brown_diagonal_13` to the Allowed-axioms section, or only Stages A–D + `no_linear_param` are achievable and `badShift_bound`/`criterion_holds`/`erdos_477` stay blocked.
+### ⚠️ One SETUP prerequisite the user must act on
+The proof's architecture requires exactly one assumed axiom, `heath_brown_diagonal_13`, but the current **`USER_NOTES.md` says "None — no assumed axioms."** As written, `init.py`/`verify.sh` would (correctly) ban that axiom and the project can't build. I did **not** edit `USER_NOTES.md` (the user owns it) — I flagged this prominently as a "SETUP PREREQUISITE" box in `BLUEPRINT.md` Part −1. **The user needs to widen `USER_NOTES.md` to permit `heath_brown_diagonal_13` before running `init.py`.**
 
-# exit=0 timed_out=False @ 2026-07-19T19:28:43Z
+# exit=0 timed_out=False @ 2026-07-20T19:11:50Z

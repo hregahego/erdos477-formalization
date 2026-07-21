@@ -1,4 +1,4 @@
-# PROGRESS — Erdős 477 (thirteenth-power tiling complement) formalization
+# PROGRESS — Erdős 477 formalization
 
 Append-only log. **Never delete, edit, or reword an existing entry.** Correct a
 prior entry only by appending a new one (`📝 decision`, noting which it
@@ -22,574 +22,170 @@ Next: <what this unblocks / where a follow-up agent should start — mandatory o
 <!-- The first entry is appended by init.py once SETUP freezes Defs + Theorems
      and records the SHA pins. Do not pre-fill log entries. -->
 
-## 2026-07-19T19:45:41Z — SETUP · freeze Defs + Theorems + axioms, build skeleton
-Agent: agent-setup
+## 2026-07-20T20:16:07Z — SETUP · Part −1 (freeze Defs + Theorems, skeleton builds)
+Agent: agent-init
 Status: ✅ proved
-Check: `lake build` → "Build completed successfully (8569 jobs)"; only warnings are
-  the 5 expected `declaration uses 'sorry'` from Theorems.lean (lines 24,31,38,46,52);
-  no errors, no other warnings. SHA pins recorded in scripts/frozen.sha256
-  (Defs.lean 42a2e988…, Theorems.lean 26981420…).
-Note: Created the Lean4+Mathlib project in-place (`lake init Erdos477 math`). Toolchain
-  and Mathlib pinned to **v4.31.0** (lean-toolchain + lakefile.toml `rev = "v4.31.0"`);
-  `lake exe cache get` succeeded (8542 files). NOTE: the blueprint's suggested v4.15.0
-  pin was abandoned — its prebuilt `cache` binary fails to run on this macOS (Darwin 25 /
-  Tahoe) with a dyld `SG_READ_ONLY` error; v4.31.0 (stable, matching Mathlib rev) is the
-  working pin, consistent with the blueprint's "any recent toolchain with a matching
-  Mathlib rev" clause. Froze Erdos477/Defs.lean (Bset, Dset, Qcof, Sset + 2 axioms) and
-  Erdos477/Theorems.lean (the 5 statements, all `:= sorry`). Wrote Proofs/<Stage>/Basic.lean
-  placeholders, Solution.lean + Discharge.lean stubs, and root Erdos477.lean importing all.
-  Wrote scripts/ALLOWED_AXIOMS.txt with both permitted axiom FQNs.
-Next: Stages are now unblocked. Prove Stage D (`greedy_tiling`, Proofs/Greedy/, independent,
-  MILESTONE) and Stage A (`Proofs/Elementary/`: zero_mem_B/D, dset_neg, pow13_inj,
-  not_B_ne_zero, mem_D_symm_shift, dset_eq_sub) first, in parallel. Then B (Cofactor:
-  qcof_factor, qcof_lower κ=1/2, pow13_gap) ∥ C (ParamExclusion: no_linear_param via Route B),
-  then E (BadShift: badShift_bound, the only consumer of `heath_brown_diagonal_13`), then F
-  (Assembly: criterion_holds, erdos_477). As each frozen `<name>` is proved sorry-free as
-  `<name>_proof`, add its verbatim restatement to Solution.lean and its `@Frozen=@Proof:=rfl`
-  gate to Discharge.lean. NEVER edit Defs.lean/Theorems.lean (byte-frozen; SHA-pinned).
+Check: `lake build` completed successfully (8569 jobs); ONLY the ten expected `declaration uses 'sorry'` warnings, all from Erdos477/Theorems.lean (lines 29,33,36,40,44,51,60,66,72,79); no errors, no other warnings.
+Note: Frozen Erdos477/Defs.lean (D1 Bset, D2 Dset, D3 Qcof polymorphic, D4 Sset + BOTH assumed-certificate axioms in the paper's full generality per USER_NOTES.md) and Erdos477/Theorems.lean (the 10 frozen statements of BLUEPRINT Part −1 §3, all := sorry). SHA-256 pins recorded in scripts/frozen.sha256; both axiom FQNs in scripts/ALLOWED_AXIOMS.txt. Stage placeholders created under Proofs/{Elementary,Cofactor,ParamExclusion,Greedy,BadShift,Assembly}/Basic.lean; Discharge.lean/Solution.lean are compiling SETUP stubs (no gates yet). Toolchain leanprover/lean4:v4.31.0, Mathlib v4.31.0 (rev fabf563a7c95, pinned in lake-manifest.json). Statements validated pre-freeze with guardrail examples (0 ∈ Bset; Qcof (1:ℝ) (-1) = 1; Icc(−T,T) card = 2T+1; (13:ℕ)/10 = 1; binom constants 3 and 1; both axioms instantiate at the diagonal-13 form and at r = 4) in a scratch file, not committed.
+Next: Stage Greedy (greedy_tiling — self-contained, prove first) and Stage Elementary (Dset_neg_mem, pow13_injective + L0.* support) can start immediately and in parallel. NOTE for ParamExclusion/BadShift workers: read the 📝 entry below — the axioms are the GENERAL paper Theorems 2.1/2.2; the specialized forms the sketch uses are proof obligations, and no_linear_param must be proved via Route A.
 
-## 2026-07-19T19:45:41Z — SETUP · modeling decisions committed (frozen)
-Agent: agent-setup
+## 2026-07-20T20:16:07Z — SETUP · modeling decisions (binding)
+Agent: agent-init
 Status: 📝 decision
 Check: n/a
-Note: Frozen modeling choices (binding — later stages characterize with support lemmas but
-  never change these):
-  • `Bset : Set ℤ := {b | ∃ m : ℤ, b = m ^ 13}` — image form `b = m^13`, infinite, no
-    positivity/`b≠0`; exponent literal `13 : ℕ`.
-  • `Dset : Set ℤ := {d | ∃ u v : ℤ, d = u ^ 13 - v ^ 13}` — direct difference-of-powers
-    encoding, NOT Minkowski `Bset - Bset`. Symmetry (`dset_neg`) and the bridge
-    `dset_eq_sub : Dset = {d | ∃ x ∈ Bset, ∃ y ∈ Bset, d = x - y}` are Stage-A lemmas.
-  • `Qcof (u v : ℤ) : ℤ := ∑ i ∈ Finset.range 13, u ^ i * v ^ (12 - i)` — full 13-term sum,
-    integer-valued (cast to ℝ for the κ=1/2 bound in Stage B); `12 - i : ℕ` truncated (safe, i≤12).
-  • `Sset (c T : ℤ) : Finset ℤ` — `noncomputable`, `(Finset.Icc (-T) T).filter (fun t => t^13 - c ∈ Dset)`
-    under `open scoped Classical`; two-sided `|t| ≤ T` kept (the `2T+1` count is load-bearing).
-  Assumed-certificate AXIOMS declared in Defs.lean (namespace Erdos477), both permitted by
-  USER_NOTES.md and listed in scripts/ALLOWED_AXIOMS.txt:
-  • `heath_brown_diagonal_13 (M hM hexcl) : ∃ K ≥ 1, ∀ X ≥ 1, (#{(x,y,z): x^13+y^13+z^13=M,
-    box ≤ X}).ncard ≤ K·X^(10/13)` — Heath-Brown determinant-method count (paper Thm 2.2),
-    CONDITIONAL form taking the degree-≤1 exclusion `hexcl` as a hypothesis (kept so Stage C
-    must *prove* it via `no_linear_param`, never assume it). ASSUMED, not proved: the
-    determinant method is far beyond current formalization. Consumed only by `badShift_bound`.
-  • `brownawell_masser_P1_four_term {k}[Field][IsAlgClosed][CharZero] (A : Fin 4 → MvPolynomial
-    (Fin 2) k) (d) (hne hhom hcoprime hsum hsub hratio) : (d:ℤ) ≤ 3·((#{projective zeros of
-    ∏A}).ncard - 2)` — four-term Brownawell–Masser S-unit inequality on ℙ¹ (paper Thm 2.1),
-    BM4 bivariate-forms formulation (SKETCH §5.2.1). ASSUMED, not proved: Mathlib has only the
-    3-term case (Mason–Stothers); the 4-term case (generalized Wronskians) is unformalized.
-    Permitted so the paper-faithful Route A is available; expected UNUSED since Route B
-    (elementary Vandermonde) proves `no_linear_param` directly — preferred `#print axioms
-    erdos_477` shows only `heath_brown_diagonal_13` beyond the standard three.
-Next: Workers must treat these as fixed. Discharge `heath_brown_diagonal_13`'s `hexcl` in
-  Stage E via `no_linear_param` (Stage C) with `M = -c`; do not add a hypothesis to any
-  frozen theorem and do not introduce a third axiom.
+Note: (1) D1–D4 as in BLUEPRINT Part −1 §2: Bset/Dset are Set ℤ comprehensions (witness order b = m^13; Dset directly as u^13 − v^13, bridge Dset_eq_Bset_sub to be proved in Proofs/Assembly); Qcof is POLYMORPHIC over CommRing (one definition for ℤ and ℝ; 12 − i is ℕ-truncated, exact on range 13); Sset is a classical Finset filter over Finset.Icc (−T) T (2T+1 candidates, load-bearing). (2) AXIOMS — per USER_NOTES.md, which OVERRIDES BLUEPRINT §2 D5 and SKETCH §3/§5.2.1: BOTH axioms are declared in Defs.lean in the FULL generality of the paper's Theorems 2.1/2.2, and both are MANDATORY on erdos_477's dependency path. Axiom Erdos477.heath_brown_diagonal_13 = Theorem 2.2 exactly: F : MvPolynomial (Fin 3) ℤ, hypotheses 3 ≤ k, F.IsHomogeneous k, IsNonsingularForm F (gradient vanishes only at 0 over ℂ — the standard char-0 algebraic-closure rendering), and an arbitrary real cN as the implied constant of |N| ≪_F X; conclusion ∃ K ≥ 1 (depending on F, cN ONLY — quantified before N, X) with ncard(HBSolutionSet F N (k/10) X) ≤ K·X^(10/k) for all N ≠ 0, X ≥ 1, |N| ≤ cN·X. Support defs (frozen): IsNonsingularForm, IsParamOfDegLE (triple in ℤ[T], all natDegree ≤ d, NOT all constant — natDegree = 0 = constant incl. 0 —, aeval identity F(p) = C N), LiesOnParamOfDegLE (∃ t : ℤ hitting x), HBSolutionSet (box ∀ i, |xᵢ| ≤ X, excluding LiesOn). Axiom Erdos477.brownawell_masser_P1_four_term = Theorem 2.1 exactly: k alg. closed char 0, S : Finset (Option k) — Option k models ℙ¹_k = k ∪ {∞} (none = ∞; faithful since k is alg. closed), u : Fin r → RatFunc k, r ≥ 3 GENERAL (name's four_term tag fixed by USER_NOTES, r NOT hard-coded), hypotheses: all IsSUnitP1 (nonzero + ordAtP1 = 0 off S), not all constant (RatFunc.C), ∑ u i = 0, no proper nonempty subsum zero; conclusion projHeightP1 u ≤ binom(r−1,2)·(|S| − 2) in ℤ. Support defs (frozen): ordAtP1 (at finite a: rootMultiplicity of num minus denom — coprime so honest ord; at ∞: −intDegree), IsSUnitP1, projHeightP1 = −finsum over P of ⨅ i ordAtP1 P (u i) (finsum honest for nonzero uᵢ; ⨅ is the genuine min for nonempty Fin r). (3) CONSEQUENCES for later stages: the sketch's conditional diagonal-13 "AXIOM HB" is now a LEMMA to prove in Proofs/BadShift (bridge: diagonal form is nonsingular; k/10 = 1; under no_linear_param no solution lies on a deg-≤1 parametrization so HBSolutionSet = full box count; pick cN := |c| to absorb |N| ≪ X); the sketch's "BM4" bivariate form is a LEMMA to derive from the S-unit axiom if wanted; no_linear_param MUST be proved via Route A (paper's Lemma 3.1 + Cor 3.2, invoking the BM axiom in BOTH its r = 4 and r = 3 instances — do NOT use Mathlib's Mason–Stothers on the main dependency path; Route B may exist only off-path). (4) verify.sh check 4 will show heath_brown_diagonal_13 on badShift_bound/criterion_for_B/erdos_477 and brownawell_masser_P1_four_term on no_linear_param and everything downstream of it — both MUST appear on erdos_477 or review rejects the run per USER_NOTES.
+Next: n/a (decision record).
 
-## 2026-07-19T20:16:04Z — Stage A · Elementary L0.1–L0.6 (A1–A6)
+## 2026-07-20T20:29:28Z — Stage Elementary (L0.1–L0.6 + pow13_eq_neg, rat_pow13_int)
 Agent: agent-iter1-2
 Status: 🔧 in progress
 Check: n/a
-Note: Claiming `Erdos477/Proofs/Elementary/Basic.lean` (and any new file under
-  `Erdos477/Proofs/Elementary/`). Will prove zero_mem_B, zero_mem_D, dset_neg,
-  pow13_inj (+ pow13_eq_iff, pow13_eq_neg), not_B_ne_zero, mem_D_symm_shift,
-  dset_eq_sub. No other file touched.
-Next: n/a (in progress)
+Note: Claiming Erdos477/Proofs/Elementary/Basic.lean per TASKS.md Iteration 1 Agent 2. Will produce Dset_neg_mem_proof, pow13_injective_proof, zero_mem_Bset, ne_zero_of_notMem_Bset, badShift_iff, pow13_eq_neg, rat_pow13_int.
+Next: n/a (claim entry).
 
-## 2026-07-19T20:16:04Z — Stage B · Cofactor L1.1–L1.2 (B1–B3)
+## 2026-07-20T20:29:47Z — Stage BadShift · HB specialization bridge (diag13Form + hb_diagonal_conditional)
+Agent: agent-iter1-4
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming Erdos477/Proofs/BadShift/Basic.lean per TASKS.md Iteration 1 Agent 4. Building diag13Form (+ IsHomogeneous 13, IsNonsingularForm), diag13_eval/aeval, and the bridge lemma hb_diagonal_conditional from the frozen general axiom heath_brown_diagonal_13. NOT touching badShift_bound.
+Next: n/a (claim entry).
+
+## 2026-07-20T20:30:52Z — Stage Cofactor (C1–C3: pow13_sub_pow13_factor, cofactor_lower_bound, pow13_gap)
 Agent: agent-iter1-3
 Status: 🔧 in progress
 Check: n/a
-Note: Claiming `Erdos477/Proofs/Cofactor/Basic.lean` (and any new file under
-  `Erdos477/Proofs/Cofactor/`). Proving `qcof_factor`, `qcof_lower` (κ = 1/2, all reals),
-  `pow13_gap`. Will NOT import Stage A (Agent 2 holds it); only `Erdos477.Defs` + Mathlib.
-Next: on ✅ Stage E may cite `Erdos477.qcof_factor`, `Erdos477.qcof_lower`, `Erdos477.pow13_gap`.
+Note: Claiming Erdos477/Proofs/Cofactor/Basic.lean per TASKS.md Iteration 1 Agent 3. Plan: polymorphic Qcof_mul_sub via geom_sum₂_mul (C1); Qcof_comm symmetry + s=v/u reduction + geometric-sum q(s)≥1/2 (C2, constant exactly 1/2, ∀ u v : ℝ); cast + |u−v|≥1 (C3). No new axioms; target #print axioms = standard three at most.
+Next: n/a (in progress).
 
-## 2026-07-19T20:17:13Z — Stage D · greedy_tiling (D1–D4)
-Agent: agent-iter1-1
-Status: 🔧 in progress
-Check: n/a
-Note: Claiming `Erdos477/Proofs/Greedy/Basic.lean`, `Erdos477/Solution.lean`,
-  `Erdos477/Discharge.lean` per TASKS.md Iteration 1 / Agent 1. Building the greedy
-  construction (Aseq via Denumerable ℤ enumeration, invariants I1/I2, monotone chain,
-  union) to prove `Erdos477.greedy_tiling_proof` with the frozen type. B kept abstract.
-Next: on success, Solution restatement + Discharge `rfl` gate + ✅ entry.
-
-## 2026-07-19T20:18:03Z — Stage A · Elementary L0.1–L0.6 (A1–A6)
+## 2026-07-20T20:33:05Z — Stage Elementary (E1–E3 complete: L0.1–L0.6 + pow13_eq_neg + rat_pow13_int)
 Agent: agent-iter1-2
 Status: ✅ proved
-Check: `lake build Erdos477.Proofs.Elementary.Basic` → "Build completed successfully
-  (8559 jobs)", no errors/warnings, no `sorry`. `#print axioms` on all nine
-  declarations (via `lake env lean` on a scratch file): each is a subset of
-  {propext, Classical.choice, Quot.sound} — zero_mem_B/zero_mem_D/dset_neg/
-  not_B_ne_zero/mem_D_symm_shift → [propext]; dset_eq_sub → [propext, Quot.sound];
-  pow13_inj/pow13_eq_iff/pow13_eq_neg → [propext, Classical.choice, Quot.sound].
-  No assumed-certificate axiom appears anywhere in Stage A.
-Note: All six Stage-A items proved in `Erdos477/Proofs/Elementary/Basic.lean` (only
-  file touched; no new files, so `Erdos477.lean` unchanged). Details:
-  • `zero_mem_B : (0:ℤ) ∈ Bset` (witness m = 0), `zero_mem_D : (0:ℤ) ∈ Dset` (u = v = 0).
-  • `dset_neg : ∀ d : ℤ, d ∈ Dset → -d ∈ Dset` — proved by SWAPPING the witnesses
-    (`rintro ⟨u, v, rfl⟩; exact ⟨v, u, by ring⟩`), not by odd-power sign tricks.
-  • `pow13_inj : Function.Injective (fun m : ℤ => m ^ 13)` — GLOBAL on ℤ, via
-    `(Odd.strictMono_pow (R := ℤ) odd_thirteen).injective`; the exact Mathlib name is
-    **`Odd.strictMono_pow : Odd n → StrictMono fun a : R => a ^ n`**
-    (Mathlib/Algebra/Order/Ring/Basic.lean:178) — NOT `Odd.pow_right_strictMono` /
-    `Odd.pow_left_injective`, which do not exist at this Mathlib rev (v4.31.0).
-    Private helper `odd_thirteen : Odd (13:ℕ) := ⟨6, by norm_num⟩`.
-    Corollaries exported: `pow13_eq_iff {x y : ℤ} : x ^ 13 = y ^ 13 ↔ x = y` and
-    `pow13_eq_neg {x y : ℤ} (h : x ^ 13 = -(y ^ 13)) : x = -y` (uses `Odd.neg_pow`).
-  • `not_B_ne_zero : ∀ c : ℤ, c ∉ Bset → c ≠ 0` from `zero_mem_B`.
-  • `mem_D_symm_shift : ∀ c t : ℤ, c - t ^ 13 ∈ Dset ↔ t ^ 13 - c ∈ Dset` — `dset_neg`
-    in both directions (`simpa` closes the `-(c - t^13) = t^13 - c` rewrites).
-  • `dset_eq_sub : Dset = {d : ℤ | ∃ x ∈ Bset, ∃ y ∈ Bset, d = x - y}` — a genuine
-    `Set.ext` EQUALITY, both inclusions proved (→ by exhibiting x = u^13, y = v^13;
-    ← by destructing the Bset memberships).
-Next: Stages C, E, F may now cite, from `Erdos477.Proofs.Elementary.Basic` (import
-  `Erdos477.Proofs.Elementary.Basic`), the names `Erdos477.zero_mem_B`,
-  `Erdos477.zero_mem_D`, `Erdos477.dset_neg`, `Erdos477.pow13_inj`,
-  `Erdos477.pow13_eq_iff`, `Erdos477.pow13_eq_neg`, `Erdos477.not_B_ne_zero`,
-  `Erdos477.mem_D_symm_shift`, `Erdos477.dset_eq_sub`. In particular Stage F's
-  `criterion_holds`/`erdos_477` assembly should use `dset_eq_sub` to rewrite the
-  abstract difference set in `greedy_tiling` into `Dset`, `mem_D_symm_shift` for the
-  bad-shift reindexing, and `not_B_ne_zero` for the `c ≠ 0` side condition feeding
-  `heath_brown_diagonal_13`. Stage A needs no follow-up work.
+Check: `lake build Erdos477.Proofs.Elementary.Basic` succeeds with zero warnings; #print axioms — Dset_neg_mem_proof [propext], pow13_injective_proof [propext, Classical.choice, Quot.sound], zero_mem_Bset [propext], ne_zero_of_notMem_Bset [propext], badShift_iff [propext], pow13_eq_neg [propext, Classical.choice, Quot.sound], rat_pow13_int [propext, Classical.choice, Quot.sound]. No custom axiom, no sorry.
+Note: All in Erdos477/Proofs/Elementary/Basic.lean, namespace Erdos477. (a) Dset_neg_mem_proof — CHARACTER-EXACT frozen Dset_neg_mem type; witness swap (u,v)↦(v,u) via `obtain ⟨u,v,rfl⟩` + `⟨v, u, by ring⟩`, no sign manipulation. (b) pow13_injective_proof — CHARACTER-EXACT frozen pow13_injective type; genuine injectivity on ALL of ℤ via `Odd.pow_injective (by decide)` (Mathlib name is Odd.pow_injective, NOT Odd.pow_right_injective). (c) zero_mem_Bset (witness m=0); ne_zero_of_notMem_Bset {c} (rintro rfl); badShift_iff {c t} (both directions via Dset_neg_mem_proof + neg_sub); pow13_eq_neg {x y} (rw Odd.neg_pow then injectivity); rat_pow13_int (IsIntegral ℤ d from monic X^13 − C c via Polynomial.monic_X_pow_sub_C + eval₂_sub/eval₂_X_pow/eval₂_C, then IsIntegrallyClosed.isIntegral_iff — ℤ integrally closed in ℚ). Cheat-watch guardrail examples included: (2:ℤ)^13 ≠ 3^13, (-2:ℤ)^13 ≠ 2^13, Dset_neg_mem closes on arbitrary opened witness. No decide-over-range, no m ≥ 0 restriction.
+Next: Unblocks Stage Cofactor and Stage ParamExclusion (per BLUEPRINT order chart). ParamExclusion/Assembly should use Erdos477.pow13_eq_neg and Erdos477.rat_pow13_int (Route A needs the latter); BadShift/Assembly use Erdos477.badShift_iff, Erdos477.ne_zero_of_notMem_Bset, Erdos477.zero_mem_Bset. Discharge.lean can wire frozen Dset_neg_mem := Dset_neg_mem_proof and pow13_injective := pow13_injective_proof (types character-exact). All in file Erdos477/Proofs/Elementary/Basic.lean.
 
-## 2026-07-19T20:19:06Z — Stage B · Cofactor L1.1–L1.2 (B1–B3) COMPLETE
+## 2026-07-20T20:33:59Z — Stage BadShift · HB specialization bridge (hb_diagonal_conditional) ✅
+Agent: agent-iter1-4
+Status: ✅ proved
+Check: `lake build Erdos477.Proofs.BadShift.Basic` succeeds (no warnings, no sorries). `#print axioms Erdos477.hb_diagonal_conditional` = [propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound] — exactly the standard three + the permitted HB axiom, NO brownawell_masser. All five support lemmas (diag13Form_isHomogeneous, diag13_eval, diag13_aeval, diag13Form_pderiv, diag13Form_nonsingular) = standard three only.
+Note: In Erdos477/Proofs/BadShift/Basic.lean: diag13Form := X 0 ^ 13 + X 1 ^ 13 + X 2 ^ 13 (noncomputable def, Proofs-only, not in Defs); homogeneity via (isHomogeneous_X ℤ i).pow 13; nonsingularity via diag13Form_pderiv (pderiv i = 13 * X i ^ 12, by fin_cases + simp) then over ℂ 13*x_i^12 = 0 → x_i = 0 (mul_eq_zero + pow_eq_zero_iff). Bridge hb_diagonal_conditional (exact statement of TASKS.md Iteration 1 Agent 4(c)): instantiate frozen axiom at F := diag13Form, k := 13, cN := |(M:ℝ)|; (13:ℕ)/10 = 1 and ((13:ℕ):ℝ) = 13 by norm_num; |M| ≤ |M|*X via le_mul_of_one_le_right; HBSolutionSet diag13Form M 1 X = full box set because hexcl + diag13_aeval refute IsParamOfDegLE (hexcl's natDegree = 0 conclusion contradicts the ¬∀ clause), so the exclusion conjunct is vacuous; finish by Set.ncard congruence (rw of the set equality). badShift_bound NOT touched (needs no_linear_param, per plan).
+Next: Unblocks Stage BadShift B1: once ParamExclusion delivers no_linear_param, a follow-up agent proves badShift_bound in this same file by feeding no_linear_param c hc (as hexcl, with M := -c ≠ 0 via ne_zero_of_notMem_Bset) into Erdos477.hb_diagonal_conditional, then the Φ t = (u_t, -v_t, -t) injection + pow13_gap box bound X := C_c*T^(13/12) per BLUEPRINT B1. Use diag13_eval to translate MvPolynomial.eval x diag13Form = -c into x 0^13 + x 1^13 + x 2^13 = -c.
+
+## 2026-07-20T20:34:17Z — Stage Cofactor (C1–C3) COMPLETE
 Agent: agent-iter1-3
 Status: ✅ proved
-Check: `lake build Erdos477.Proofs.Cofactor.Basic` → "Built ... (8.2s), Build completed
-  successfully (8559 jobs)", zero errors, zero warnings (no `sorry`). `#print axioms` on
-  ALL seven declarations (`qcof_factor`, `qcof_lower`, `pow13_gap`, `sub_pow13_eq`,
-  `two_mul_qcof_eq`, `max_abs_pow12_le`, `qcof_nonneg`) → `[propext, Classical.choice,
-  Quot.sound]` only.
-Note: All of Stage B proved in `Erdos477/Proofs/Cofactor/Basic.lean` (only file touched;
-  no new files, so `Erdos477.lean` unchanged). Imports only `Erdos477.Defs` + Mathlib —
-  Stage A NOT imported.
-  • `sub_pow13_eq (R) [CommRing R] (u v : R) : u^13 - v^13 = (u - v) * ∑ i ∈ range 13,
-    u^i * v^(12-i)` — proved by `simp only [Finset.sum_range_succ, Finset.sum_range_zero];
-    norm_num; ring`. Stated over an arbitrary `CommRing` so both the ℤ form (B1) and the
-    ℝ form needed by B3 are instances; no `geom_sum₂_mul` index-convention wrangling needed.
-  • `qcof_factor (u v : ℤ) : u^13 - v^13 = (u - v) * Qcof u v := sub_pow13_eq ℤ u v` (B1),
-    plus the mandated guardrail `example : (2:ℤ)^13 - 1^13 = (2-1) * Qcof 2 1` by `norm_num`.
-  • `qcof_lower (u v : ℝ) : (1/2) * (max |u| |v|)^12 ≤ ∑ i ∈ range 13, u^i * v^(12-i)` (B2 /
-    L1.1) — ALL reals, constant EXACTLY 1/2, no compactness, no unnamed κ. 📝 PROOF DECISION:
-    instead of SKETCH §4's `s := v/u ∈ [-1,1]` substitution I used an equivalent but much
-    more Lean-friendly SUM-OF-SQUARES identity (`two_mul_qcof_eq`, proved by `ring`):
-      `2·Q(u,v) = u^12 + v^12 + (v^6+uv^5)^2 + (uv^5+u^2v^4)^2 + (u^2v^4+u^3v^3)^2
-                  + (u^3v^3+u^4v^2)^2 + (u^4v^2+u^5v)^2 + (u^5v+u^6)^2`
-    (for odd i, `term_{i-1} + 2·term_i + term_{i+1}` is a perfect square; the six squares
-    consume every term of `2Q` except `u^12 + v^12`). Hence `Q ≥ (u^12+v^12)/2 ≥
-    (1/2)·max(|u|,|v|)^12` via `max_abs_pow12_le : (max |u| |v|)^12 ≤ u^12 + v^12`. This
-    proves the SAME inequality with the SAME constant — no weakening. It also yields the
-    strictly stronger `Q ≥ (u^12+v^12)/2` should a later stage want it.
-  • `qcof_nonneg (u v : ℝ) : 0 ≤ ∑ i ∈ range 13, u^i * v^(12-i)` — corollary of B2.
-  • `pow13_gap (u v : ℤ) (huv : u ≠ v) : (1/2) * (max |(u:ℝ)| |(v:ℝ)|)^12 ≤
-    |(u:ℝ)^13 - (v:ℝ)^13|` (B3 / L1.2) — hypothesis `u ≠ v` KEPT; via `sub_pow13_eq ℝ`,
-    `Int.one_le_abs (sub_ne_zero.mpr huv)` cast to ℝ for `1 ≤ |u - v|`, and `qcof_lower`
-    (which also supplies `Q ≥ 0`, so `|Q| = Q`).
-Next: Stage E (`Proofs/BadShift/`) may now cite, from `Erdos477.Proofs.Cofactor.Basic`:
-  `Erdos477.pow13_gap` (the coordinate bound `max(|u|,|v|) ≤ (2|t^13 - c|)^(1/12) ≪ T^(13/12)`),
-  `Erdos477.qcof_lower`, `Erdos477.qcof_nonneg`, `Erdos477.qcof_factor`, and the ring-generic
-  `Erdos477.sub_pow13_eq`. Stage E must add `import Erdos477.Proofs.Cofactor.Basic`.
-  Nothing in Stage B is blocked or outstanding.
+Check: `lake build Erdos477.Proofs.Cofactor.Basic` succeeds (8559 jobs, zero warnings, zero sorries); `#print axioms` for pow13_sub_pow13_factor_proof, cofactor_lower_bound_proof, pow13_gap_proof (and support lemmas Qcof_mul_sub, Qcof_comm, geom13_ge_half, cofactor_lower_bound_of_le) each = [propext, Classical.choice, Quot.sound] exactly — no HB axiom, no BM axiom. scripts/frozen.sha256 verifies OK (Defs.lean, Theorems.lean untouched).
+Note: All three frozen Cofactor statements proved CHARACTER-EXACT in Erdos477/Proofs/Cofactor/Basic.lean. C1 `pow13_sub_pow13_factor_proof` via polymorphic `Qcof_mul_sub` (CommRing) from Mathlib's `geom_sum₂_mul` + `mul_comm`. C2 `cofactor_lower_bound_proof` (∀ u v : ℝ, constant EXACTLY 1/2) per SKETCH §4 L1.1: `Qcof_comm` symmetry by `Finset.sum_range_reflect`, WLOG |v| ≤ |u| via `le_total` split (`cofactor_lower_bound_of_le`), u = 0 case by `norm_num [Qcof, sum_range_succ]`, main case s := v/u with |s| ≤ 1, factorization Qcof u v = u^12 * ∑_{j<13} s^j (per-term `eq_div_iff`/`pow_add`, reflect reindex), and `geom13_ge_half`: 0 ≤ s branch by `Finset.single_le_sum` (j = 0 term); s < 0 branch by `geom_sum_mul` identity q(s)(1−s) = 1 − s^13, `Odd.pow_neg` for s^13 < 0, `le_of_mul_le_mul_right` with 0 < 1 − s ≤ 2. C3 `pow13_gap_proof` by casting to ℝ, `Qcof_mul_sub`, `Int.one_le_abs` for |u − v| ≥ 1, calc chain with `mul_le_mul_of_nonneg_right`. Both BLUEPRINT cheat-watch guardrail examples included and passing (Qcof (1:ℝ) (-1) = 1; the 1/2·max^12 instance at (1,−1)).
+Next: Unblocks Stage BadShift B1 (`badShift_bound` consumes cofactor_lower_bound_proof + pow13_gap_proof once ParamExclusion lands) and Stage Assembly (Solution.lean can wire pow13_sub_pow13_factor/cofactor_lower_bound/pow13_gap to these `_proof` theorems). Follow-up agents: import `Erdos477.Proofs.Cofactor.Basic`; the polymorphic `Qcof_mul_sub {R} [CommRing R]` and `Qcof_comm` are reusable over ℝ directly (no push_cast needed for the ℝ factorization).
 
-## 2026-07-19T20:19:37Z — Stage D · greedy_tiling (D1–D4) — MILESTONE
+## 2026-07-20T20:37:48Z — Stage Greedy · greedy_tiling (G1 / L4.1)
+Agent: agent-iter1-1
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming Erdos477/Proofs/Greedy/Basic.lean (Iteration 1, Agent 1). Will produce Erdos477.greedy_tiling_proof, character-exact to frozen greedy_tiling, via Denumerable ℤ enumeration + greedy Aseq : ℕ → Finset ℤ with invariants (I1)/(I2) per SKETCH §7.
+Next: n/a (claim entry).
+
+## 2026-07-20T20:40:12Z — Stage Greedy · greedy_tiling (G1 / L4.1)
 Agent: agent-iter1-1
 Status: ✅ proved
-Check: `lake build Erdos477.Proofs.Greedy.Basic Erdos477.Solution Erdos477.Discharge` →
-  success, no errors, no warnings from my files (only the 5 expected `uses sorry`
-  warnings from the frozen Theorems.lean).
-  `#print axioms Erdos477.Solution.greedy_tiling` → `[propext, Classical.choice, Quot.sound]`
-  `#print axioms Erdos477.greedy_tiling_proof`   → `[propext, Classical.choice, Quot.sound]`
-  (no `heath_brown_diagonal_13`, no `sorryAx`.)
-Note: `Erdos477/Proofs/Greedy/Basic.lean` now proves `Erdos477.greedy_tiling_proof` with
-  EXACTLY the frozen type (machine-checked by the new `example : @Erdos477.greedy_tiling =
-  @Erdos477.greedy_tiling_proof := rfl` in `Erdos477/Discharge.lean`), and
-  `Erdos477/Solution.lean` carries the verbatim restatement `Erdos477.Solution.greedy_tiling`.
-  `B` stays ABSTRACT; `H` is used on the FULL image `Finset` `C = S.image (n - ·)`
-  (not singletons); both existence AND uniqueness are proved. Declarations added, all in
-  `namespace Erdos477.Greedy` except the theorem itself (`namespace Erdos477`):
-  • `Dabs (B : Set ℤ) : Set ℤ := {d | ∃ x ∈ B, ∃ y ∈ B, d = x - y}` — the abstract difference
-    set of the frozen statement (defeq to the set-builder there; `Hyp B` coerces by `have H' :
-    Hyp B := H`).
-  • `neg_mem_Dabs` (symmetry, proved LOCALLY by swapping witnesses — independent of Stage A's
-    `dset_neg`), `zero_mem_Dabs`, `nonempty_of_Hyp` (H on `C = ∅`).
-  • `Sep B S := ∀ a ∈ S, ∀ a' ∈ S, a ≠ a' → a - a' ∉ Dabs B` (invariant I1), `sep_empty`.
-  • D1 `extend_exists (H) (S) (n) : ∃ S', S ⊆ S' ∧ (∃ a ∈ S', ∃ b ∈ B, a + b = n) ∧
-    (Sep B S → Sep B S')` — the single greedy step (case split `by_cases` on whether `n` is
-    already covered; in Case 2 `H` applied to `S.image (n - ·)`, new point `n - b`). Note the
-    covering conjunct is UNCONDITIONAL, which is what lets the recursion be defined by plain
-    `Classical.choose` without a subtype. `stepF := (extend_exists …).choose` with the three
-    projections `subset_stepF`, `cover_stepF`, `sep_stepF`.
-  • `enum j := (Denumerable.eqv ℤ).symm j`, `enum_surjective`.
-  • D1 `Aseq (H) : ℕ → Finset ℤ` (`Aseq 0 = ∅`, `Aseq (j+1) = stepF H (Aseq H j) (enum j)`).
-  • D2 `Aseq_sep : ∀ j, Sep B (Aseq H j)` (I1); `Aseq_cover : ∀ j, ∀ i < j, ∃ a ∈ Aseq H j,
-    ∃ b ∈ B, a + b = enum i` (I2). D3 `Aseq_mono : i ≤ j → Aseq H i ⊆ Aseq H j`.
-  • D4 `Aset H := ⋃ j, ↑(Aseq H j)` + `mem_Aset`; existence from `enum_surjective` + `Aseq_cover`
-    at `j = i+1`; uniqueness by pulling both `a, a'` into `Aseq H (max (i+1) j')` via `Aseq_mono`
-    and contradicting `Aseq_sep` with `a' - a = b - b' ∈ Dabs B`, then `b = b'` by cancellation.
-  Note `a₀ ∉ S` is NOT needed anywhere (the `Finset.mem_insert` case analysis covers it), so
-  `zero_mem_Dabs`/`nonempty_of_Hyp` are exported for downstream use but not load-bearing here.
-Next: Stage D is DONE and needs no follow-up. Stage F (`Proofs/Assembly/`) can now finish
-  `erdos_477` by combining `Erdos477.greedy_tiling_proof` (or `Erdos477.Solution.greedy_tiling`)
-  with `criterion_holds` and Stage A's `dset_eq_sub : Dset = {d | ∃ x ∈ Bset, ∃ y ∈ Bset,
-  d = x - y}` (Agent 2, `Proofs/Elementary/Basic.lean`) — that bridge is exactly what turns
-  `criterion_holds` (stated over `Dset`) into the `H` argument of `greedy_tiling_proof`
-  (stated over the abstract `{d | ∃ x ∈ B, ∃ y ∈ B, d = x - y}` at `B := Bset`); then convert
-  the resulting `∃! ab : ℤ × ℤ, ab.1 ∈ A ∧ ab.2 ∈ Bset ∧ ab.1 + ab.2 = n` into the frozen
-  `∃! p : ℤ × ℤ, p.1 ∈ A ∧ p.1 + p.2 ^ 13 = n` using `pow13_inj` (Stage A) for uniqueness of
-  the exponent witness `m`. Whoever edits `Solution.lean`/`Discharge.lean` next: they now
-  import `Erdos477.Proofs.Greedy.Basic` and contain the `greedy_tiling` restatement + gate —
-  APPEND only, do not rewrite.
+Check: #print axioms Erdos477.greedy_tiling_proof = [propext, Classical.choice, Quot.sound]; lake build Erdos477.Proofs.Greedy.Basic clean (8559 jobs, no warnings); statement diff vs frozen greedy_tiling is character-exact (verified by diff modulo name).
+Note: Full SKETCH §7 construction in Erdos477/Proofs/Greedy/Basic.lean, all generic in abstract B (Dset never used). Namespace Erdos477.Greedy: D (abstract difference set) + D_neg_mem (witness swap), Separated (I1), enum via (Denumerable.eqv ℤ).symm, pick (classical choice from H, via unconditional exists_good), step (Case 1 keep / Case 2 insert (n − b_j)), step_covers, step_separated (both difference directions: choice of b_j + D_neg_mem/neg_sub), step_new_notMem (a_j ∉ A via 0 ∈ B−B per pitfall 9.5(9)), Aseq with Aseq_subset_of_le (chain), Aseq_separated (I1), Aseq_covers (I2). Erdos477.greedy_tiling_proof takes A = ⋃ j Aseq j: existence via enum_surjective + (I2); uniqueness via common stage max(j+1, j') + (I1) + omega cancellation, full ∃! over the pair. Guardrail example B = Set.univ included and compiles.
+Next: Unblocks Stage Assembly's use of the criterion: apply Erdos477.greedy_tiling_proof (in Erdos477/Proofs/Greedy/Basic.lean) to B := Bset with H := criterion_for_B (once proved) to discharge frozen greedy_tiling and feed erdos_477; the (a,b) → (a,m) uniqueness upgrade additionally needs pow13_injective (Agent 2). Discharge/Solution wiring agent: greedy_tiling := greedy_tiling_proof directly.
 
-## 2026-07-19T20:27:05Z — Stage F · Assembly (F1 criterion_holds_of_badShift, F2 erdos_477_of_criterion)
-Agent: agent-iter2-3
-Status: 🔧 in progress
-Check: n/a
-Note: Claiming `Erdos477/Proofs/Assembly/Basic.lean` (and any new file under
-  `Erdos477/Proofs/Assembly/`) per TASKS.md Iteration 2 / Agent 3. Proving the two
-  support lemmas `criterion_holds_of_badShift (hBS)` and `erdos_477_of_criterion (hcrit)`,
-  each taking its not-yet-proved input as an explicit argument. Will NOT touch
-  Solution.lean/Discharge.lean (Agent 1 owns them) nor BadShift/ParamExclusion.
-Next: on ✅ iteration 3 wires `hBS := badShift_bound_proof` and `hcrit := criterion_holds_proof`.
-
-## 2026-07-19T20:26:40Z — Harness · scripts/verify.sh (REVIEW.md follow-up #1)
+## 2026-07-20T20:51:42Z — Stage BadShift · badShift_bound_of_hexcl (B1 conditional)
 Agent: agent-iter2-4
 Status: 🔧 in progress
 Check: n/a
-Note: Claiming `scripts/verify.sh` ONLY (no .lean file touched). Fixing the `set -e`
-  premature-abort at lines 235-236 and auditing the rest of the script for the same
-  command-substitution-capture pattern.
-Next: rerun `bash scripts/verify.sh` end-to-end and quote the RESULT block.
+Note: Claiming Erdos477/Proofs/BadShift/Basic.lean per TASKS.md Iteration 2 Agent 4. Will prove badShift_bound_of_hexcl (frozen badShift_bound conclusion with hexcl as extra hypothesis on this SUPPORT lemma only) via Φ t = (u_t, -v_t, -t) injection, pow13_gap_proof box bound X = C_c*T^(13/12), and my iter-1 hb_diagonal_conditional. Frozen badShift_bound untouched.
+Next: n/a (claim entry).
 
-## 2026-07-19T20:27:10Z — Stage E · badShift_bound_of_hexcl (E1–E4)
-Agent: agent-iter2-2
-Status: 🔧 in progress
-Check: n/a
-Note: Claiming `Erdos477/Proofs/BadShift/Basic.lean` (and any new file under
-  `Erdos477/Proofs/BadShift/`) per TASKS.md Iteration 2 / Agent 2. Proving
-  `badShift_bound_of_hexcl` (frozen `badShift_bound` conclusion, with `hexcl`
-  as an extra argument of this SUPPORT lemma only). Imports Stage A + Stage B
-  only; NOT ParamExclusion/Assembly. No other file touched.
-Next: n/a (in progress)
-
-## 2026-07-19T20:27:33Z — Stage C · no_linear_param (C1–C3, Route B)
+## 2026-07-20T20:52:00Z — Discharge/Solution wiring (6 theorems) + Assembly bridge Dset_eq_Bset_sub
 Agent: agent-iter2-1
 Status: 🔧 in progress
 Check: n/a
-Note: Claiming `Erdos477/Proofs/ParamExclusion/Basic.lean` (and any new file under
-  `Erdos477/Proofs/ParamExclusion/`), plus APPEND-ONLY edits to `Erdos477/Solution.lean`
-  and `Erdos477/Discharge.lean` per TASKS.md Iteration 2 / Agent 1. Proving
-  `Erdos477.no_linear_param_proof` via Route B (coefficient equations E_0,E_1,E_2,E_13
-  + elementary elimination). Route A / `brownawell_masser_P1_four_term` stays unused.
-Next: on success, Solution restatement + Discharge `rfl` gate + ✅ entry.
+Note: Claiming Erdos477/Solution.lean, Erdos477/Discharge.lean, Erdos477/Proofs/Assembly/Basic.lean per TASKS.md Iteration 2 Agent 1. Will add the six verbatim Solution restatements (Dset_neg_mem, pow13_injective, pow13_sub_pow13_factor, cofactor_lower_bound, pow13_gap, greedy_tiling), the six @Frozen = @Proof rfl gates in Discharge.lean, and prove Dset_eq_Bset_sub in Assembly. NOT touching the four unproved frozen names.
+Next: n/a (claim entry).
 
-## 2026-07-19T20:29:10Z — Harness · scripts/verify.sh (REVIEW.md follow-up #1)
-Agent: agent-iter2-4
+## 2026-07-20T20:52:16Z — Stage ParamExclusion · Degenerate half (Cases C/D, ℤ[T] lemmas)
+Agent: agent-iter2-3
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming NEW file Erdos477/Proofs/ParamExclusion/Degenerate.lean per TASKS.md Iteration 2 Agent 3 (plus the one-line import append to Erdos477.lean as final step). Will produce polyInt_pow13_injective, polyInt_pow13_eq_neg, polyInt_pow13_eq_C, mem_Bset_of_pairing, the Fin-4 vanishing-subsum 2+2 classification, and the map-(algebraMap ℤ K) descent helpers. Imports Erdos477.Defs + Erdos477.Proofs.Elementary.Basic only (NOT ParamExclusion.Basic — Agent 2 is editing it concurrently).
+Next: n/a (claim entry).
+
+## 2026-07-20T20:52:48Z — Stage ParamExclusion · Route-A RatFunc toolbox (ordAtP1 / IsSUnitP1 / projHeightP1 support)
+Agent: agent-iter2-2
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming Erdos477/Proofs/ParamExclusion/Basic.lean per TASKS.md Iteration 2 Agent 2. Building (a) ordAtP1_eq_of_div + ordAtP1_none_eq, (b) ordAtP1_C/ordAtP1_algebraMap/ordAtP1_mul/ordAtP1_pow, (c) exists_C_of_forall_ordAtP1_eq_zero + exists_C_of_pow13_eq_C, (d) IsSUnitP1 constructors + closure under *, ^, neg, (e) projHeightP1_algebraMap, (f) the |S| ≤ natDegree + 1 count, (g) algebraMap_polynomial_eq_C_iff. General {K} [Field K], [IsAlgClosed K]/[CharZero K] only where needed. No no_linear_param, no Mason–Stothers, no axiom invocation.
+Next: n/a (claim entry).
+
+## 2026-07-20T20:54:11Z — Discharge/Solution wiring (6 theorems) + Assembly bridge Dset_eq_Bset_sub ✅
+Agent: agent-iter2-1
 Status: ✅ proved
-Check: `bash scripts/verify.sh` now runs END-TO-END (exit code 1 = 1 failed check, and it
-  DOES write to logs/verify_log.jsonl again):
-  ```
-  --- Check 1: Frozen SHA pins ---
-  PASS: Erdos477/Defs.lean pin matches
-  PASS: Erdos477/Theorems.lean pin matches
-  --- Check 2: Banned keywords ---
-  PASS: no banned keywords (sorry allowed only in Theorems.lean)
-  --- Check 3: lake build ---
-  Build completed successfully (8569 jobs).
-  PASS: build clean (only expected Theorems.lean sorry warnings)
-  --- Check 4: #print axioms (Erdos477.Solution.*) ---
-  FAIL: no_linear_param — no axiom output (build/name error)
-  FAIL: badShift_bound — no axiom output (build/name error)
-  PASS: greedy_tiling — axioms within allowlist {propext Classical.choice Quot.sound
-        + Erdos477.heath_brown_diagonal_13 Erdos477.brownawell_masser_P1_four_term}
-  FAIL: criterion_holds — no axiom output (build/name error)
-  FAIL: erdos_477 — no axiom output (build/name error)
-  --- Check 5: Statement gates (Discharge / Solution) ---
-  PASS: Erdos477.Discharge compiles (statement↔proof gate holds)
-  PASS: Erdos477.Solution compiles (statement↔proof gate holds)
+Check: `lake build Erdos477.Proofs.Assembly.Basic Erdos477.Solution Erdos477.Discharge` all clean (only the expected Theorems.lean sorry warnings from the four unproved stubs). #print axioms — Solution.Dset_neg_mem [propext]; Solution.pow13_injective, Solution.pow13_sub_pow13_factor, Solution.cofactor_lower_bound, Solution.pow13_gap, Solution.greedy_tiling all [propext, Classical.choice, Quot.sound]; Erdos477.Dset_eq_Bset_sub [propext, Quot.sound]. No custom axiom on any of the seven. frozen.sha256 verifies OK. Scratch gate `@Erdos477.<name> = @Erdos477.Solution.<name> := rfl` compiles for all six (statements character-exact), in addition to the six committed Discharge gates `@Erdos477.<name> = @Erdos477.<name>_proof := rfl`.
+Note: (a) Erdos477/Solution.lean: verbatim restatements of exactly the six proved frozen theorems (Dset_neg_mem, pow13_injective, pow13_sub_pow13_factor, cofactor_lower_bound, pow13_gap, greedy_tiling), each `:= <name>_proof`; the four unproved names (no_linear_param, badShift_bound, criterion_for_B, erdos_477) deliberately NOT restated. (b) Erdos477/Discharge.lean: the six no-drift gates in the exact stub-header shape. (c) Erdos477/Proofs/Assembly/Basic.lean: `Dset_eq_Bset_sub : Dset = {d : ℤ | ∃ x ∈ Bset, ∃ y ∈ Bset, d = x - y}` by ext + rintro witness manipulation both ways (x := u^13, y := v^13; conversely reuse the Bset witnesses), imports Erdos477.Defs only. criterion_for_B / erdos_477 NOT attempted (badShift_bound not ✅).
+Next: verify.sh Checks 4–5 now gate real content for the six wired names (Check 4 --all still fails only on the four unwired names, as expected mid-run). Iteration-3 Assembly agent: use Erdos477.Dset_eq_Bset_sub (Erdos477/Proofs/Assembly/Basic.lean) to transport criterion_for_B's Dset-avoidance into greedy_tiling's abstract difference-set hypothesis when assembling erdos_477; once no_linear_param and badShift_bound land, extend Solution.lean/Discharge.lean with the remaining four restatements/gates in the same shapes.
 
-  === RESULT: FAIL (1 issue(s), 17s) ===
-  ```
-  logs/verify_log.jsonl tail:
-  {"timestamp":"2026-07-19T20:27:20Z","target":"--all","build_errors":0,"build_warnings":0,
-   "issues":1,"duration_sec":17,"success":false}
-Note: Touched `scripts/verify.sh` ONLY (no .lean file, no Defs/Theorems, no frozen.sha256,
-  no ALLOWED_AXIOMS.txt). Three `set -e` premature-abort sites fixed; NO check weakened,
-  no allowlist entry added, no check removed, exit-code semantics unchanged (exit = number
-  of failed checks):
-  1. Check 4 (the reported defect, old lines 235-236): `line=$(… | grep "…depends on axioms")`
-     and `noax=$(… | grep "…does not depend on any axioms")` now end in `|| true`, so a frozen
-     theorem missing from Solution.lean is reported as `FAIL: <name> — no axiom output` and the
-     loop/Check 5/RESULT/log all still run. (Verified above: 4 per-theorem FAILs printed,
-     `greedy_tiling` still PASSes, Check 5 and the RESULT summary now appear.)
-  2. Check 2 (SAME latent pattern, found by the requested scan): `BANNED_OUT=$(… python3 …)`
-     is followed by `BANNED_EXIT=$?`, but the helper exits 1 exactly when it FINDS banned
-     keywords — under `set -e` the assignment itself would have killed the script before the
-     `FAIL: banned keywords detected` branch ever ran. Now wrapped in `set +e` / `set -e`
-     (not `|| true`, which would have clobbered `$?`). Confirmed in a throwaway /tmp sandbox
-     with a planted `native_decide`: the script prints `FAIL: banned keywords detected` and
-     continues through Checks 3-5 to `=== RESULT: FAIL (4 issue(s)) ===` (exit 4).
-  3. Check 1 hardening: `actual=$(sha256_of "$REPO_ROOT/$relpath" 2>/dev/null || true)` — a
-     missing/unreadable pinned file is now a pin MISMATCH FAIL (empty ≠ pinned) instead of an
-     abort. Still strictly a FAIL, no weakening.
-  Audited every other `x=$(…)` capture: lines 214/236/272 (`lake` runs) are already inside
-  `set +e`/`set -e`; 218 and 264 already end in `|| true`; 253 uses `sed -n` (exit 0 on
-  no-match); the `[ … ] && VAR=…` idioms (lines 121/128/261/278/282) are exempt from `set -e`
-  as non-final members of an AND-list (checked empirically in bash on this machine).
-Next: the audit gate is FUNCTIONAL again — any agent/iteration can now run
-  `bash scripts/verify.sh` (or `bash scripts/verify.sh <theorem>` for a single one) and get a
-  complete Checks 1-5 report plus a `logs/verify_log.jsonl` entry, whatever subset of the five
-  frozen theorems is restated in `Solution.lean` so far. The 4 remaining Check-4 FAILs are
-  CONTENT, not harness: they clear as Iteration 2/3 append `no_linear_param` (Agent 1, this
-  iteration), then `badShift_bound`, `criterion_holds`, `erdos_477` (Iteration 3 wiring of
-  `badShift_bound_of_hexcl` / `criterion_holds_of_badShift` / `erdos_477_of_criterion`) to
-  `Erdos477/Solution.lean` + `Erdos477/Discharge.lean`. No follow-up work on `scripts/verify.sh`
-  is outstanding.
-
-## 2026-07-19T20:31:12Z — Stage F · Assembly F1+F2 (criterion_holds_of_badShift, erdos_477_of_criterion)
+## 2026-07-20T20:54:45Z — Stage ParamExclusion · Degenerate half (Cases C/D, ℤ[T] lemmas) COMPLETE
 Agent: agent-iter2-3
 Status: ✅ proved
-Check: `lake build Erdos477.Proofs.Assembly.Basic` → "Build completed successfully (8561 jobs)",
-  zero errors, zero warnings, no `sorry`. `#print axioms` on ALL six declarations
-  (`criterion_holds_of_badShift`, `erdos_477_of_criterion`, `mem_Sset`, `Sset_subset`,
-  `card_Icc_neg`, `mul_rpow_lt_self`) → `[propext, Classical.choice, Quot.sound]` only —
-  in particular NEITHER depends on `heath_brown_diagonal_13` (it will enter only through
-  the `hBS` argument in iteration 3). Type-shape gate (scratch file, compiles): the frozen
-  `criterion_holds` conclusion is inhabited by `criterion_holds_of_badShift hBS`, the frozen
-  `erdos_477` conclusion by `erdos_477_of_criterion hcrit`, and `hBS`'s type is verbatim the
-  ∀-form of the frozen `badShift_bound`.
-Note: Only `Erdos477/Proofs/Assembly/Basic.lean` touched (no new files, so `Erdos477.lean`
-  unchanged; Solution.lean/Discharge.lean NOT touched — Agent 1 owns them). Imports
-  `Erdos477.Defs`, `Erdos477.Proofs.Elementary.Basic`, `Erdos477.Proofs.Greedy.Basic` only.
-  • `mem_Sset {c T t} : t ∈ Sset c T ↔ t ∈ Finset.Icc (-T) T ∧ t ^ 13 - c ∈ Dset` (`simp [Sset]`).
-  • `Sset_subset (c T) : Sset c T ⊆ Finset.Icc (-T) T` (`Finset.filter_subset`).
-  • `card_Icc_neg (T) (0 ≤ T) : ((Finset.Icc (-T) T).card : ℤ) = 2 * T + 1` — the FULL
-    two-sided `2T+1` count (`Int.card_Icc` + `Int.toNat_of_nonneg`), load-bearing.
-  • `mul_rpow_lt_self (0 ≤ K) (1 ≤ x) (K ^ 6 < x) : K * x ^ ((5:ℝ)/6) < x` — the STRICT step,
-    proved by sixth powers exactly as SKETCH §8.1 suggests: `(K * x^(5/6))^6 = K^6 * x^5 <
-    x * x^5 = x^6`, then `lt_of_pow_lt_pow_left₀ 6`. Key rewrite
-    `(x ^ ((5:ℝ)/6)) ^ (6:ℕ) = x ^ (5:ℕ)` via `← Real.rpow_natCast`, `← Real.rpow_mul`, `norm_num`.
-  • **F1** `criterion_holds_of_badShift (hBS : ∀ c : ℤ, c ∉ Bset → ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ,
-    1 ≤ T → ((Sset c T).card : ℝ) ≤ K * (T:ℝ) ^ ((5:ℝ)/6)) : ∀ C : Finset ℤ,
-    (∀ c ∈ C, c ∉ Bset) → ∃ b ∈ Bset, ∀ c ∈ C, c - b ∉ Dset`. `choose KK` over a TOTAL
-    auxiliary (`K_c` for `c ∈ C`, dummy `1` elsewhere) so `K := ∑ c ∈ C, KK c` ranges over ALL
-    of `C`; `T := max 1 (⌈K^6⌉ + 1)` gives `1 ≤ T` and `K^6 < (T:ℝ)`; then
-    `|⋃_{c∈C} Sset c T| ≤ ∑_{c∈C} |Sset c T| ≤ K * T^(5/6) < T < 2T+1 = #Icc (-T) T`
-    (`Finset.card_biUnion_le`, `Finset.sum_le_sum`, `Finset.sum_mul`, `card_Icc_neg`), all
-    comparisons STRICT where the sketch demands. Pigeonhole by `Finset.card_le_card` on the
-    contrapositive gives `t₀ ∈ Icc (-T) T` outside every `Sset c T`; `b := t₀ ^ 13 ∈ Bset`;
-    `c - b ∉ Dset` by `mem_D_symm_shift` (Stage A) + `mem_Sset`. Note the `C = ∅` case needs no
-    separate branch here (the empty sum gives `K = 0` and the condition is vacuous), so
-    `zero_mem_B` is not used — the general argument covers it.
-  • **F2** `erdos_477_of_criterion (hcrit : ∀ C : Finset ℤ, (∀ c ∈ C, c ∉ Bset) →
-    ∃ b ∈ Bset, ∀ c ∈ C, c - b ∉ Dset) : ∃ A : Set ℤ, ∀ n : ℤ, ∃! p : ℤ × ℤ,
-    p.1 ∈ A ∧ p.1 + p.2 ^ 13 = n`. `hcrit` is turned into the `H` of `greedy_tiling_proof`
-    at `B := Bset` by rewriting with `dset_eq_sub` (Stage A) — the only bridge used, `Defs.lean`
-    untouched. The `∃!` is kept: existence takes `b = m ^ 13` from `hb : b ∈ Bset`; uniqueness of
-    the PAIR `(a,m)` comes from greedy's pair-uniqueness (`a' = a`, `m'^13 = m^13`) plus
-    `pow13_eq_iff`/`pow13_inj` (Stage A) for `m' = m`.
-Next: Iteration 3 wiring, once Stage C (`no_linear_param_proof`, Agent 1) and Stage E
-  (`badShift_bound_of_hexcl`, Agent 2) land:
-    `theorem badShift_bound_proof (c) (hc) := badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)`
-    `theorem criterion_holds_proof : ... := criterion_holds_of_badShift badShift_bound_proof`
-    `theorem erdos_477_proof : ... := erdos_477_of_criterion criterion_holds_proof`
-  (`badShift_bound_proof` must be η-fed as `fun c hc => badShift_bound_proof c hc` if the
-  binder shape differs; the scratch gate confirms the ∀-form typechecks). Then APPEND the
-  verbatim restatements to `Erdos477/Solution.lean` and the `@Frozen = @Proof := rfl` gates to
-  `Erdos477/Discharge.lean` for `criterion_holds` and `erdos_477`. Expected
-  `#print axioms Erdos477.Solution.erdos_477` = `{propext, Classical.choice, Quot.sound,
-  Erdos477.heath_brown_diagonal_13}`. Nothing in Stage F is blocked or outstanding.
+Check: `lake build Erdos477.Proofs.ParamExclusion.Degenerate` clean (8560 jobs, zero warnings, zero sorries); root `lake build` succeeds after the Erdos477.lean import append (8570 jobs; ONLY the ten expected frozen-Theorems sorry warnings). #print axioms for ALL seven new theorems = [propext, Classical.choice, Quot.sound] exactly — no custom axiom, no sorryAx.
+Note: NEW file Erdos477/Proofs/ParamExclusion/Degenerate.lean (namespace Erdos477; imports Erdos477.Defs + Erdos477.Proofs.Elementary.Basic only, NOT ParamExclusion.Basic). (a) polyInt_pow13_injective (p q : Polynomial ℤ) : p^13 = q^13 → p = q — pointwise eval + pow13_injective_proof + Polynomial.funext (ℤ infinite). (b) polyInt_pow13_eq_neg : p^13 = -(q^13) → p = -q — Odd.neg_pow (13 odd) + (a). (c) polyInt_pow13_eq_C (p) (m) : p^13 = C m → ∃ b, p = C b ∧ b^13 = m — natDegree_pow degree count 13*natDegree p = 0, Polynomial.natDegree_eq_zero, C_injective. (d) mem_Bset_of_pairing (c) (p) : p^13 = C (-c) → c ∈ Bset — from (c), witness -b via Odd.neg_pow. (e) vanishing_subsum_pairing {M : AddCommGroup} (x : Fin 4 → M) (∑ x = 0, all xᵢ ≠ 0, proper nonempty I with ∑_I x = 0) : ∃ I', I'.card = 2 ∧ I'.Nonempty ∧ ∑_I' x = 0 ∧ ∑_I'ᶜ x = 0 — interval_cases on I.card ∈ {1,2,3}; singleton subsums refuted by nonzeroness, card-3 by the complementary singleton (Finset.sum_add_sum_compl, Finset.card_compl); NO decide on the abstract part. (f) polyMap_int_injective (K) [Field K] [CharZero K] : Function.Injective (Polynomial.map (algebraMap ℤ K)) — Polynomial.map_injective + Int.cast injectivity; pow13_pair_descent : (p.map φ)^13 + (q.map φ)^13 = 0 → p^13 = -(q^13) — push map through ^/+, injectivity, linear_combination. Guardrail examples included: concrete 2+2 extraction on ![1,-1,2,-2], and mem_Bset_of_pairing certifying (-8192) ∈ Bset from p = C 2. Erdos477.lean: appended `import Erdos477.Proofs.ParamExclusion.Degenerate` directly after the ParamExclusion.Basic import (only change to that file). Frozen Defs.lean/Theorems.lean untouched. no_linear_param NOT stated (per cheat-watch); no Mason–Stothers anywhere.
+Next: Iteration-3 spine agent (no_linear_param via Route A, SKETCH §5.2.3): import Erdos477.Proofs.ParamExclusion.Degenerate and use — Case C via polyInt_pow13_eq_C/mem_Bset_of_pairing; Case D via vanishing_subsum_pairing to get the 2+2 split, pow13_pair_descent (at K := AlgebraicClosure ℚ or any CharZero field where the pairing identity lives) + polyInt_pow13_eq_neg to descend the F = -G pair, mem_Bset_of_pairing for the pair containing C(-c) — each branch contradicts c ∉ Bset. Combine with Agent 2's RatFunc toolbox in ParamExclusion.Basic (ordAtP1_*, exists_C_of_pow13_eq_C, S-unit constructors, projHeightP1_algebraMap) and the frozen BM axiom (r = 4 and r = 3 instances) for Cases A/B. Then Stage BadShift discharges badShift_bound via Agent 4's badShift_bound_of_hexcl.
 
-## 2026-07-19T20:31:52Z — Stage E · badShift_bound_of_hexcl (E1–E4) COMPLETE
+## 2026-07-20T20:58:44Z — Stage BadShift · badShift_bound_of_hexcl (B1 conditional) ✅
+Agent: agent-iter2-4
+Status: ✅ proved
+Check: `lake build Erdos477.Proofs.BadShift.Basic` succeeds (8561 jobs, zero warnings, zero sorries); `#print axioms Erdos477.badShift_bound_of_hexcl` = [propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound] — EXACTLY the standard three + the permitted HB axiom, NO brownawell_masser_P1_four_term, no sorryAx. scripts/frozen.sha256 verifies OK (Defs.lean, Theorems.lean untouched).
+Note: In Erdos477/Proofs/BadShift/Basic.lean (added imports Erdos477.Proofs.Elementary.Basic + Erdos477.Proofs.Cofactor.Basic): theorem Erdos477.badShift_bound_of_hexcl (c) (hc : c ∉ Bset) (hexcl : <exact no_linear_param conclusion at C (-c)>) : ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T → ((Sset c T).card : ℝ) ≤ K * (T:ℝ)^((5:ℝ)/6) — conclusion CHARACTER-EXACT to frozen badShift_bound; frozen statement untouched/un-restated. Proof per SKETCH §6 Steps 0–4: M := -c ≠ 0 via ne_zero_of_notMem_Bset + neg_ne_zero; hb_diagonal_conditional (-c) hM hexcl gives K; C_c := (2(1+|c|))^(1/12) ≥ 1, X := C_c*T^(13/12); per t ∈ Sset c T (Sset filter unfolded) choice of (u,v) with t^13−c = u^13−v^13, u ≠ v else c = t^13 ∈ Bset (hc live); pow13_gap_proof + |t^13−c| ≤ (1+|c|)·T^13 gives max(|u|,|v|)^12 ≤ 2(1+|c|)T^13, 12th root via Real.rpow_natCast/rpow_mul/mul_rpow gives max ≤ X; Φ t = ![u,−v,−t] (Odd.neg_pow for eval = −c via diag13_eval; third coord recovers t ⇒ Set.InjOn); box finite inside Set.pi of Icc (−⌈X⌉) ⌈X⌉ (Set.Finite.pi + Int.le_ceil); count chain Set.ncard_coe_finset + InjOn.ncard_image + Set.ncard_le_ncard, then exponent identity (13/12)*(10/13) = 5/6 via ← Real.rpow_mul; K_c := K * C_c^(10/13) ≥ 1. Exponent lands EXACTLY on 5/6 through the honest T^(13/12) coordinate bound.
+Next: Iteration-3 discharge of frozen badShift_bound is now the one-liner `fun c hc => badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)` (in Erdos477/Proofs/BadShift/Basic.lean or Solution wiring) as soon as ParamExclusion delivers no_linear_param_proof with the frozen no_linear_param type. Nothing else remains in Stage BadShift.
+
+## 2026-07-20T21:06:51Z — Stage ParamExclusion · Route-A RatFunc toolbox COMPLETE
 Agent: agent-iter2-2
 Status: ✅ proved
-Check: `lake build Erdos477.Proofs.BadShift.Basic` → "Built ... (9.4s), Build completed
-  successfully (8561 jobs)", zero errors, zero warnings, no `sorry`.
-  `#print axioms Erdos477.badShift_bound_of_hexcl` →
-  `[propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound]`
-  — exactly the permitted set, no `sorryAx`, no `brownawell_masser_P1_four_term`.
-  All support lemmas (`coord_bound`, `Phi_inj`, `sol_finite`, …) →
-  `[propext, Classical.choice, Quot.sound]` only.
-  FROZEN-TYPE GATE (scratch file, `lake env lean`, type-checked OK):
-  `example : ∀ (c : ℤ), c ∉ Bset → (∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T →
-     ((Sset c T).card : ℝ) ≤ K * (T:ℝ) ^ ((5:ℝ)/6)) :=
-   fun c hc => badShift_bound_of_hexcl c hc (no_linear_param c hc)`
-  — i.e. feeding the frozen `no_linear_param` into my lemma yields EXACTLY the frozen
-  `badShift_bound` type. Only `Erdos477/Proofs/BadShift/Basic.lean` touched (no new
-  files, so `Erdos477.lean` unchanged).
-Note: Stage E fully proved in `Erdos477/Proofs/BadShift/Basic.lean`, namespace
-  `Erdos477` (helpers in `Erdos477.BadShift`). Exponent is the literal `(5:ℝ)/6`;
-  `hexcl` is an argument of THIS SUPPORT LEMMA ONLY — the frozen statement is untouched.
-  • `mem_Sset_iff : t ∈ Sset c T ↔ (-T ≤ t ∧ t ≤ T) ∧ t ^ 13 - c ∈ Dset` (`simp [Sset]`).
-  • E1: `pair_exists c t : ∃ p : ℤ × ℤ, t^13 - c ∈ Dset → t^13 - c = p.1^13 - p.2^13`
-    (always-true existential, so the choice `pairOf c t := (pair_exists c t).choose` needs
-    no `dite`/subtype); `pairOf_spec`; `pairOf_ne` — the witnesses are DISTINCT, the one
-    place `hc : c ∉ Bset` is used (else `c = t^13 ∈ Bset`); `Phi c t := (u, -v, -t)`;
-    `Phi_inj` (third coordinate recovers `t`); `Phi_sum : u^13 + (-v)^13 + (-t)^13 = -c`
-    via `Odd.neg_pow ⟨6, _⟩`.
-  • E2: `Cc c := (2*(1+|(c:ℝ)|)) ^ ((1:ℝ)/12)` with `one_le_Cc`, `Cc_pow12 : Cc c ^ 12 =
-    2*(1+|c|)`; `Xb c T := Cc c * (T:ℝ) ^ ((13:ℝ)/12)` with `one_le_Xb`, `T_le_Xb`,
-    `Xb_pow12 : Xb c T ^ 12 = 2*(1+|c|)*(T:ℝ)^13`. `coord_bound` chains Stage B's
-    `pow13_gap u v hne` with `|t^13 - c| ≤ (1+|c|)*T^13` (from `|t| ≤ T`, `T ≥ 1`) to get
-    `m^12 ≤ (Xb c T)^12` (`m := max |u| |v|`), then `le_of_pow_le_pow_left₀`. So the box
-    radius really is `≍ T^(13/12)` — no `O(T²)` slack.
-  • Finiteness: `mem_Icc_ceil` (`|(x:ℝ)| ≤ X → x ∈ Set.Icc (-⌈X⌉) ⌈X⌉`, via `Int.le_ceil`)
-    and `sol_finite M X : {v : ℤ×ℤ×ℤ | sum = M ∧ box ≤ X}.Finite` (subset of a product of
-    three `Set.Icc`). This is ESSENTIAL: without it `ncard = 0` makes the axiom vacuous.
-  • E3/E4: one invocation `heath_brown_diagonal_13 (-c) (neg_ne_zero.mpr (not_B_ne_zero c hc))
-    hexcl` (Stage A's `not_B_ne_zero`), passing `hexcl` through unchanged; then
-    `Finset.card_image_of_injective _ (Phi_inj c)` + `Set.ncard_le_ncard hsub (sol_finite …)`
-    + `Set.ncard_coe_finset` give `#Sset c T ≤ ncard(solutions) ≤ K * X^(10/13)`, and
-    `Real.mul_rpow` / `← Real.rpow_mul` give `X^(10/13) = Cc c ^(10/13) * T^(5/6)`.
-    Final constant `K_c := max 1 (K * Cc c ^ ((10:ℝ)/13))` (so `1 ≤ K_c` is `le_max_left`).
-  Mathlib names that differ at v4.31.0 (for later agents): `Set.ncard_coe_finset` (NOT
-  `Set.ncard_coe_Finset`), `pow_le_pow_left₀`, `le_of_pow_le_pow_left₀`, `one_le_pow₀`.
-  Note `rw [Xb]` is needed before `nlinarith` — `nlinarith` does not unfold the def.
-Next: ITERATION 3 wiring (one line, in whichever file owns the frozen restatements):
-  `theorem badShift_bound_proof (c : ℤ) (hc : c ∉ Bset) :
-     ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T → ((Sset c T).card : ℝ) ≤ K * (T:ℝ) ^ ((5:ℝ)/6) :=
-   Erdos477.badShift_bound_of_hexcl c hc (Erdos477.no_linear_param_proof c hc)`
-  (import `Erdos477.Proofs.BadShift.Basic` and `Erdos477.Proofs.ParamExclusion.Basic`);
-  that type-checked here against the frozen `no_linear_param`, so it will type-check
-  against Stage C's `no_linear_param_proof` as soon as Agent 1 lands it. Then APPEND the
-  `badShift_bound` restatement to `Solution.lean` and the `rfl` gate to `Discharge.lean`.
-  Stage F's `criterion_holds_of_badShift` takes exactly this `∀ c, c ∉ Bset → ∃ K …`
-  as its `hBS` argument. Nothing in Stage E is outstanding.
+Check: `lake build Erdos477.Proofs.ParamExclusion.Basic` succeeds (8559 jobs, zero warnings, zero sorries); `#print axioms` on ALL 22 declarations = [propext, Classical.choice, Quot.sound] exactly — NO brownawell_masser_P1_four_term, NO heath_brown_diagonal_13, no sorryAx. scripts/frozen.sha256 verifies OK (Defs.lean, Theorems.lean untouched).
+Note: All in Erdos477/Proofs/ParamExclusion/Basic.lean, namespace Erdos477, over general {K} [Field K] ([IsAlgClosed K] only on the two constancy criteria). (a) ordAtP1_eq_of_div + ordAtP1_none_eq — representation independence for ANY nonzero f = p/q via cross-multiplication RatFunc.num_mul_eq_mul_denom_iff + Polynomial.rootMultiplicity_mul / natDegree_mul (no gcd manipulation needed). (b) ordAtP1_C (hyp a ≠ 0 kept as _ha; true unconditionally), ordAtP1_one, ordAtP1_algebraMap (finite pt = rootMultiplicity; proved WITHOUT the p ≠ 0 hypothesis — holds unconditionally), ordAtP1_algebraMap_none (= −natDegree via RatFunc.intDegree_polynomial), ordAtP1_mul (nonzero args; ∞ case via RatFunc.intDegree_mul), ordAtP1_pow, ordAtP1_neg (via RatFunc.C (−1) * f). (c) exists_C_of_forall_ordAtP1_eq_zero (coprime num/denom share no root by IsCoprime eval; rootless ⇒ constant by IsAlgClosed.exists_root) and exists_C_of_pow13_eq_C (13·ord = 0 at every P ⇒ ord = 0). (d) ratFuncC_ne_zero, isSUnitP1_C, isSUnitP1_algebraMap (roots ⊆ S, none ∈ S), IsSUnitP1.mul / IsSUnitP1.pow / IsSUnitP1.neg. (e) projHeightP1_algebraMap: ⨅ = 0 at every finite point (ciInf_le/le_ciInf, constant coordinate i₀ has rootMultiplicity 0), ⨅ = −(sup natDegree) at ∞ (Finset.exists_mem_eq_sup), finsum collapses by finsum_eq_single at none; height = max degree exactly. (f) card_roots_option_none_le : ((p.roots.toFinset.image some ∪ {none}).card : ℤ) ≤ p.natDegree + 1 (card_union_le + card_image_le + toFinset_card_le + card_roots'). (g) algebraMap_polynomial_eq_C_iff via RatFunc.algebraMap_injective + algebraMap_C. Scratch guardrails verified (not committed): ordAtP1 (some 0) X = 1, ordAtP1 none X = −1, projHeightP1 (X, 1) = 1. No Polynomial.abc anywhere; no_linear_param NOT stated.
+Next: Unblocks the iteration-3 ParamExclusion spine (paper's Lemma 3.1 Cases A/B + Cor 3.2). Import Erdos477.Proofs.ParamExclusion.Basic and use, at K := AlgebraicClosure ℚ: ordAtP1_eq_of_div/ordAtP1_none_eq for order bookkeeping; isSUnitP1_algebraMap + IsSUnitP1.pow/neg to make the four terms F^13, G^13, H^13, −N·R^13 S-units for S = roots(FGHR) ∪ {∞}; card_roots_option_none_le (applied to the product polynomial, natDegree ≤ 4e resp. 3e) for the |S| bound fed into brownawell_masser_P1_four_term; projHeightP1_algebraMap for H = 13e (one coordinate constant after dividing by the max-degree form — dehomogenized route: divide the quadruple by F^13 and clear to polynomials, or apply directly to a common-denominator representation with a constant coordinate); exists_C_of_pow13_eq_C for SKETCH Cases C/D ((H/R)^13 = N constant ⇒ H/R constant); algebraMap_polynomial_eq_C_iff to convert RatFunc-constancy back to Polynomial ℤ-constancy before descending to ℤ via Degenerate.lean's polyMap_int_injective. Exact name list: ordAtP1_some_def, ordAtP1_none_def, ordAtP1_eq_of_div, ordAtP1_none_eq, ratFuncC_ne_zero, ordAtP1_C, ordAtP1_one, ordAtP1_algebraMap, ordAtP1_algebraMap_none, ordAtP1_mul, ordAtP1_pow, ordAtP1_neg, exists_C_of_forall_ordAtP1_eq_zero, exists_C_of_pow13_eq_C, isSUnitP1_C, isSUnitP1_algebraMap, IsSUnitP1.mul, IsSUnitP1.pow, IsSUnitP1.neg, projHeightP1_algebraMap, card_roots_option_none_le, algebraMap_polynomial_eq_C_iff (all in namespace Erdos477).
 
-## 2026-07-19T20:33:45Z — Stage C · no_linear_param (C1–C3, Route B) COMPLETE
-Agent: agent-iter2-1
-Status: ✅ proved
-Check: `lake build Erdos477.Proofs.ParamExclusion.Basic` → "Built ... (9.4s), Build
-  completed successfully (8560 jobs)", zero errors, zero warnings (no `sorry`).
-  `lake build Erdos477.Solution Erdos477.Discharge` → success (only the 5 expected
-  `uses sorry` warnings from the frozen Theorems.lean); in particular the no-drift gate
-  `example : @Erdos477.no_linear_param = @Erdos477.no_linear_param_proof := rfl`
-  ELABORATES, so the proof carries EXACTLY the frozen type.
-  `#print axioms` → `[propext, Classical.choice, Quot.sound]` for ALL of
-  `Erdos477.Solution.no_linear_param`, `Erdos477.no_linear_param_proof`,
-  `Erdos477.linear_coeff_vanish`, `Erdos477.two_nonzero_case`, `Erdos477.coeff_lin_pow13`.
-  Neither `heath_brown_diagonal_13` nor `brownawell_masser_P1_four_term` appears
-  (Route B only; `Mathlib/NumberTheory/FLT/MasonStothers.lean` never imported).
-  Banned-keyword grep on the new file: no `sorry`/`native_decide`/`admit`/`unsafe`/`axiom`.
-Note: Stage C proved in `Erdos477/Proofs/ParamExclusion/Basic.lean` (only new content;
-  `Erdos477.lean` unchanged since the module already existed), plus APPEND-ONLY additions
-  to `Erdos477/Solution.lean` (`import Erdos477.Proofs.ParamExclusion.Basic` +
-  `Erdos477.Solution.no_linear_param := no_linear_param_proof`) and
-  `Erdos477/Discharge.lean` (same import + the `rfl` gate). Iteration-1 content in those
-  two files was left byte-identical. Declarations added (all `namespace Erdos477`):
-  • `coeff_lin_pow13 (a b : ℤ) (k : ℕ) (hk : k ≤ 13) :
-      ((C a * X + C b : ℤ[X])^13).coeff k = (Nat.choose 13 k : ℤ) * a^k * b^(13-k)` (C2).
-    Proved via `add_pow` + `Polynomial.finsetSum_coeff`, rewriting each summand as
-    `C ((13.choose m) * a^m * b^(13-m)) * X^m` (`simp only [mul_pow, ← C_pow,
-    ← C_eq_natCast, C_mul]; ring`) and collapsing with `Finset.sum_ite_eq'`.
-    📝 NOTE: the natCast→C lemma at this Mathlib rev is **`Polynomial.C_eq_natCast`**
-    (`C (n : R) = (n : R[X])`); there is no `C_natCast`.
-  • `two_nonzero_case (a a' b b' b'' c : ℤ) (ha' : a' ≠ 0) (E0 : a^13 + a'^13 = 0)
-      (E1 : a^12*b + a'^12*b' = 0) (E13 : b^13+b'^13+b''^13 = -c) : c ∈ Bset`
-    — the `|I| = 2` crux: `a = -a'` by Stage A's `pow13_eq_neg`, then `(-a')^12 = a'^12`
-    turns E1 into `a'^12*(b+b') = 0`, so `b' = -b`, the two 13th powers cancel and
-    `c = (-b'')^13 ∈ Bset`.
-  • `linear_coeff_vanish (c a₁ a₂ a₃ b₁ b₂ b₃ : ℤ) (hc : c ∉ Bset) (E0) (E1) (E2) (E13) :
-      a₁ = 0 ∧ a₂ = 0 ∧ a₃ = 0` (C3) — the arithmetic core over the four coefficient
-    equations `E₀ : Σaᵢ¹³ = 0`, `E₁ : Σaᵢ¹²bᵢ = 0`, `E₂ : Σaᵢ¹¹bᵢ² = 0`, `E₁₃ : Σbᵢ¹³ = -c`.
-    Full 8-way `by_cases` on which `aᵢ` vanish: |I|=1 killed by E₀; the three |I|=2 cases by
-    `two_nonzero_case`; |I|=3 by the Vandermonde/equal-ratio argument over ℚ.
-    📝 PROOF DECISION (equivalent to SKETCH §5.1 Step 2, no weakening): instead of
-    `Matrix.det_vandermonde` I use the SKETCH's recommended direct elimination in the
-    slick form `Σᵢ wᵢ(qᵢ-q₂)(qᵢ-q₃) = E₂ - (q₂+q₃)E₁ + q₂q₃E₀ = 0`, which isolates
-    `w₁(q₁-q₂)(q₁-q₃) = 0` (one `linear_combination` each for the three indices); with
-    `wᵢ = (aᵢ:ℚ)^13 ≠ 0` this gives the three "each ratio equals one of the others"
-    equations, whence `q₁ = q₂ = q₃` by a 4-line case bash. Equal ratios + E₁₃ then give
-    `(c:ℚ) = q₁¹³ · Σ(aᵢ:ℚ)¹³ = 0`, so `c = 0 ∈ Bset` (Stage A `zero_mem_B`) — contradiction.
-    The ratios are obtained as `∃ q : ℚ, (bᵢ:ℚ) = q * (aᵢ:ℚ)` (`field_simp`), never assumed
-    distinct.
-  • `no_linear_param_proof (c : ℤ) (hc : c ∉ Bset) : <frozen statement>` — C1 by
-    `Polynomial.eq_X_add_C_of_natDegree_le_one` (all three `pᵢ`, no extra hypothesis),
-    C2 by taking `coeff` at k = 13, 12, 11, 0 of `hsum` through `coeff_lin_pow13`
-    (RHS via `Polynomial.coeff_C`; the binomial factors 13 and 78 cancelled by
-    `mul_eq_zero`), C3 by `linear_coeff_vanish`; finally `natDegree pᵢ = 0` from
-    `pᵢ = C 0 * X + C bᵢ` by `simp`. Uses from Stage A: `pow13_eq_neg`, `zero_mem_B`.
-Next: Stage E (Agent 2, `Proofs/BadShift/`) and iteration 3 may now cite
-  `Erdos477.no_linear_param_proof : ∀ (c : ℤ), c ∉ Bset → ∀ p₁ p₂ p₃ : Polynomial ℤ,
-  p₁^13 + p₂^13 + p₃^13 = Polynomial.C (-c) → p₁.natDegree ≤ 1 → p₂.natDegree ≤ 1 →
-  p₃.natDegree ≤ 1 → p₁.natDegree = 0 ∧ p₂.natDegree = 0 ∧ p₃.natDegree = 0`
-  from `Erdos477.Proofs.ParamExclusion.Basic` (or `Erdos477.Solution.no_linear_param`).
-  Concretely, iteration 3 should define, in a file that may import BOTH Stage C and
-  Stage E, `theorem badShift_bound_proof (c : ℤ) (hc : c ∉ Bset) : <frozen> :=
-  badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)` and add the corresponding
-  `Solution.lean` restatement + `Discharge.lean` `rfl` gate (APPEND-ONLY; both files now
-  import `Erdos477.Proofs.Greedy.Basic` and `Erdos477.Proofs.ParamExclusion.Basic` and
-  contain the `greedy_tiling` and `no_linear_param` entries). Stage C needs no follow-up.
+## 2026-07-20T21:19:01Z — Stage Assembly · conditional layer (criterion_for_B_of_bound + erdos_477_of_criterion)
+Agent: agent-iter3-2
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming Erdos477/Proofs/Assembly/Basic.lean per TASKS.md Iteration 3 Agent 2. Will prove (a) criterion_for_B_of_bound (hypothesis = ∀-closure of frozen badShift_bound, conclusion CHARACTER-EXACT frozen criterion_for_B) via SKETCH §8.1 pigeonhole off Finset.Icc (-T) T with T > K^6, and (b) erdos_477_of_criterion (hypothesis = frozen criterion_for_B statement, conclusion CHARACTER-EXACT frozen erdos_477) via greedy_tiling_proof + Dset_eq_Bset_sub + pow13_injective_proof upgrade. No frozen statement touched or restated; both lemmas must stay within the standard three axioms.
+Next: n/a (claim entry).
 
-## 2026-07-19T20:39:07Z — Iteration 3 · Final wiring (Discharge & Solution)
+## 2026-07-20T21:24:22Z — Stage ParamExclusion · Route-A spine (no_linear_param_proof) + badShift_bound discharge
 Agent: agent-iter3-1
 Status: 🔧 in progress
 Check: n/a
-Note: Claiming `Erdos477/Proofs/Wiring.lean` (NEW), plus APPEND-ONLY edits to
-  `Erdos477/Solution.lean`, `Erdos477/Discharge.lean`, and one `import` line in
-  `Erdos477.lean`. Composing `no_linear_param_proof` → `badShift_bound_of_hexcl` →
-  `criterion_holds_of_badShift` → `erdos_477_of_criterion` into the three remaining
-  frozen theorems `badShift_bound`, `criterion_holds`, `erdos_477`.
-Next: `✅`/`⚠️` entry with the verify.sh RESULT block and `#print axioms` lines.
+Note: Claiming NEW file Erdos477/Proofs/ParamExclusion/Spine.lean per TASKS.md Iteration 3 Agent 1 (plus, once the spine builds: the one-line import append to Erdos477.lean and the badShift_bound_proof discharge append to Erdos477/Proofs/BadShift/Basic.lean). Plan: no_linear_param_proof CHARACTER-EXACT to frozen no_linear_param, by contradiction via the paper's Lemma 3.1 Cases A–D — zero-pattern dispatch over ℤ (Cases C/D via Degenerate.lean's mem_Bset_of_pairing / vanishing_subsum_pairing / polyMap_int_injective), and BOTH the r = 3 and r = 4 instances of the frozen axiom brownawell_masser_P1_four_term at K := AlgebraicClosure ℚ using ParamExclusion.Basic's S-unit/height toolbox. No Mason-Stothers, no Route B.
+Next: n/a (claim entry).
 
-## 2026-07-19T20:41:31Z — Iteration 3 · Final wiring (Discharge & Solution) COMPLETE
+## 2026-07-20T21:24:37Z — Stage Assembly · conditional layer (criterion_for_B_of_bound + erdos_477_of_criterion) ✅
+Agent: agent-iter3-2
+Status: ✅ proved
+Check: `lake build Erdos477.Proofs.Assembly.Basic` succeeds (8561 jobs, zero warnings, zero sorries). #print axioms — Erdos477.criterion_for_B_of_bound [propext, Classical.choice, Quot.sound]; Erdos477.erdos_477_of_criterion [propext, Classical.choice, Quot.sound]; Erdos477.Dset_eq_Bset_sub [propext, Quot.sound] — NO custom axiom on any (neither heath_brown_diagonal_13 nor brownawell_masser_P1_four_term), no sorryAx. scripts/frozen.sha256 verifies OK (Defs.lean, Theorems.lean untouched). Scratch wiring gate (not committed): `erdos_477_of_criterion (criterion_for_B_of_bound badShift_bound)` and `criterion_for_B_of_bound badShift_bound` typecheck against statements copied character-exact from Theorems.lean — iteration 4's composition is machine-confirmed.
+Note: In Erdos477/Proofs/Assembly/Basic.lean (added imports Erdos477.Proofs.Elementary.Basic + Erdos477.Proofs.Greedy.Basic; Dset_eq_Bset_sub kept unchanged). (a) criterion_for_B_of_bound — hypothesis hbnd = ∀-closure of frozen badShift_bound verbatim, conclusion CHARACTER-EXACT frozen criterion_for_B; SKETCH §8.1: C = ∅ via zero_mem_Bset; else Kf per c ∈ C by `choose` (Kf = 1 off C for totality), K := ∑_{c∈C} Kf c ≥ 1 (Finset.single_le_sum), T := (⌈K⌉₊:ℤ)^6 + 1 (so 1 ≤ T and K^6 < T via Nat.le_ceil + gcongr); bad := C.biUnion (Sset · T) with (card : ℝ) ≤ K·T^(5/6) (Finset.card_biUnion_le + Finset.sum_le_sum + Finset.sum_mul); STRICT step K·T^(5/6) < T by sixth powers: (T^(5/6))^6 = T^5 via Real.rpow_natCast/rpow_mul, K^6·T^5 < T·T^5, lt_of_pow_lt_pow_left₀; Int.card_Icc gives |Icc (-T) T| = 2T+1 (omega), bad.card < T < 2T+1, pigeonhole Finset.exists_mem_notMem_of_card_lt_card yields t₀ ∈ Icc (-T) T avoiding every Sset c T; b := t₀^13, membership unfold (simp only [Sset, Finset.mem_filter]) + badShift_iff converts t₀^13 - c ∉ Dset to c - t₀^13 ∉ Dset. (b) erdos_477_of_criterion — hypothesis hcrit CHARACTER-EXACT frozen criterion_for_B, conclusion CHARACTER-EXACT frozen erdos_477; SKETCH §8.2: transport hcrit through Dset_eq_Bset_sub (simpa only [← Dset_eq_Bset_sub]), apply greedy_tiling_proof Bset, destructure the ∃! at (a, b), obtain b = m^13, existence as (a, m); uniqueness: (a', m'^13) satisfies the (a,b)-predicate, ∃!-uniqueness gives pair equality, Prod.ext_iff splits, pow13_injective_proof upgrades m'^13 = m^13 to m' = m (the mandatory upgrade), subst + rfl. Cheat-watch guardrail example included: two distinct (a,m)-representations of a fixed n yield False. No frozen statement touched or restated; hypotheses hbnd/hcrit appear ONLY on these support lemmas.
+Next: Iteration 4 wiring is pure composition, machine-checked to typecheck: once Agent 1's no_linear_param_proof + badShift_bound_proof land, add to Solution.lean/Discharge.lean the four remaining restatements/gates with criterion_for_B := Erdos477.criterion_for_B_of_bound Erdos477.badShift_bound_proof (or via the Solution restatement of badShift_bound) and erdos_477 := Erdos477.erdos_477_of_criterion (that criterion term); #print axioms on the wired erdos_477 will then show exactly the standard three + BOTH custom axioms, as USER_NOTES.md mandates. Both lemmas live in Erdos477/Proofs/Assembly/Basic.lean, namespace Erdos477.
+
+## 2026-07-20T21:39:30Z — Stage ParamExclusion · Route-A spine (no_linear_param_proof) + Stage BadShift discharge (badShift_bound_proof) ✅
 Agent: agent-iter3-1
 Status: ✅ proved
-Check: `lake build` → "Build completed successfully (8570 jobs)", zero errors, only the
-  5 expected `declaration uses \`sorry\`` warnings from the byte-frozen Theorems.lean
-  (lines 24, 31, 38, 46, 52). `bash scripts/verify.sh` full run:
-  ```
-  --- Check 1: Frozen SHA pins ---
-  PASS: Erdos477/Defs.lean pin matches
-  PASS: Erdos477/Theorems.lean pin matches
-  --- Check 2: Banned keywords ---
-  PASS: no banned keywords (sorry allowed only in Theorems.lean)
-  --- Check 3: lake build ---
-  Build completed successfully (8570 jobs).
-  PASS: build clean (only expected Theorems.lean sorry warnings)
-  --- Check 4: #print axioms (Erdos477.Solution.*) ---
-  PASS: no_linear_param — axioms within allowlist
-  PASS: badShift_bound — axioms within allowlist
-  PASS: greedy_tiling — axioms within allowlist
-  PASS: criterion_holds — axioms within allowlist
-  PASS: erdos_477 — axioms within allowlist
-  --- Check 5: Statement gates (Discharge / Solution) ---
-  PASS: Erdos477.Discharge compiles (statement↔proof gate holds)
-  PASS: Erdos477.Solution compiles (statement↔proof gate holds)
-  === RESULT: PASS (0 issue(s), 18s) ===
-  ```
-  `#print axioms` (via `lake env lean` on a scratch file importing Erdos477.Solution):
-  `'Erdos477.Solution.no_linear_param' depends on axioms: [propext, Classical.choice, Quot.sound]`
-  `'Erdos477.Solution.badShift_bound' depends on axioms: [propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound]`
-  `'Erdos477.Solution.greedy_tiling' depends on axioms: [propext, Classical.choice, Quot.sound]`
-  `'Erdos477.Solution.criterion_holds' depends on axioms: [propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound]`
-  `'Erdos477.Solution.erdos_477' depends on axioms: [propext, Classical.choice, Erdos477.heath_brown_diagonal_13, Quot.sound]`
-  — no `sorryAx`, no `brownawell_masser_P1_four_term` anywhere.
-Note: BLUEPRINT §"Discharge & Solution" is now CLOSED; all five frozen theorems are
-  restated sorry-free in `Erdos477/Solution.lean` and gated by `rfl` in
-  `Erdos477/Discharge.lean`. No new mathematics — pure composition. Files touched
-  (exactly the four assigned; Defs.lean/Theorems.lean/verify.sh/ALLOWED_AXIOMS.txt
-  untouched, SHA pins still match):
-  • NEW `Erdos477/Proofs/Wiring.lean` (namespace `Erdos477`), three declarations with
-    statements VERBATIM from Theorems.lean:
-      – `badShift_bound_proof (c : ℤ) (hc : c ∉ Bset) := badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)`
-        — the axiom's `hexcl` is discharged HERE by Stage C; the frozen statement gains
-        no hypothesis, and the exponent stays the literal `(5:ℝ)/6`.
-      – `criterion_holds_proof := criterion_holds_of_badShift (fun c hc => badShift_bound_proof c hc)`
-        (the η-expanded `fun c hc => …` is what Stage F1's `hBS` binder shape wants).
-      – `erdos_477_proof := erdos_477_of_criterion criterion_holds_proof`.
-  • `Erdos477.lean`: one added line `import Erdos477.Proofs.Wiring` after the other
-    `Proofs.*` imports, before `Erdos477.Solution`; every other line unchanged.
-  • `Erdos477/Solution.lean`: APPEND-ONLY — added `import Erdos477.Proofs.Wiring` and,
-    after the untouched Iteration-1/2 `greedy_tiling`/`no_linear_param` entries, the three
-    verbatim restatements `Erdos477.Solution.badShift_bound`, `.criterion_holds`, `.erdos_477`.
-  • `Erdos477/Discharge.lean`: APPEND-ONLY — same import plus the three no-drift gates
-    `example : @Erdos477.badShift_bound = @Erdos477.badShift_bound_proof := rfl`,
-    `… @Erdos477.criterion_holds = @Erdos477.criterion_holds_proof := rfl`,
-    `… @Erdos477.erdos_477 = @Erdos477.erdos_477_proof := rfl`. ALL THREE ELABORATE on the
-    first try — no type drift anywhere in the chain
-    `no_linear_param → badShift_bound → criterion_holds → erdos_477`.
-Next: Nothing outstanding for the formalization proper — every frozen theorem is proved
-  and gated, and the only non-standard dependency is the user-permitted certificate
-  `Erdos477.heath_brown_diagonal_13` (entering exactly where expected: `badShift_bound`
-  and its two downstream consumers; `greedy_tiling` and `no_linear_param` are free of it).
-  A follow-up agent could (a) refresh `REVIEW.md`/`README.md` to record that Iteration-2
-  required follow-ups #1 and #2 are now cleared and `verify.sh` reports PASS (0 issues),
-  and (b) optionally golf `Erdos477/Proofs/**`; no proof work remains.
+Check: `#print axioms Erdos477.no_linear_param_proof` = [propext, Classical.choice, Erdos477.brownawell_masser_P1_four_term, Quot.sound] — EXACTLY the standard three + the BM axiom, NO heath_brown_diagonal_13, no sorryAx. `#print axioms Erdos477.badShift_bound_proof` = [propext, Classical.choice, Erdos477.brownawell_masser_P1_four_term, Erdos477.heath_brown_diagonal_13, Quot.sound] — EXACTLY the standard three + BOTH permitted axioms. Root `lake build` succeeds (8571 jobs; ONLY the ten expected frozen-Theorems sorry warnings, zero other warnings). Statement-drift gates machine-checked in scratch: `example : <frozen no_linear_param type> := no_linear_param_proof` and `example : <frozen badShift_bound type> := badShift_bound_proof` both compile. scripts/frozen.sha256 verifies OK. grep for `abc` in Spine.lean: only the header comment stating Mason–Stothers is nowhere used.
+Note: NEW file Erdos477/Proofs/ParamExclusion/Spine.lean (namespace Erdos477; imports Defs + Elementary.Basic + ParamExclusion.Basic + ParamExclusion.Degenerate). Route A per SKETCH §5.2.2–5.2.3 / paper's Lemma 3.1 + Cor 3.2, dehomogenized (R = 1): (1) fin3_no_vanishing_subsum — three-term subsum dispatch (singleton nonzero, pair forces complementary singleton). (2) bm_no_three_term {K alg closed, char 0} — paper's Case B: q = ![A^13, B^13, C γ], S = roots(A·B) ∪ {∞} (isSUnitP1_algebraMap + IsSUnitP1.pow + isSUnitP1_C), height via projHeightP1_algebraMap (constant slot i₀ = 2), |S| via card_roots_option_none_le; frozen axiom brownawell_masser_P1_four_term at r = 3 gives sup ≤ 1·(|S|−2) vs sup ≥ 13·deg — omega-impossible. (3) bm_no_four_term — paper's Case A, same recipe at r = 4: S = roots(P₁P₂P₃) ∪ {∞}, coefficient (4−1).choose 2 = 3, 13e ≤ 3(3e+1−2) impossible. (4) two_nonzero_natDegree_eq_zero / three_nonzero_natDegree_eq_zero — ℤ-level wrappers mapping through algebraMap ℤ (AlgebraicClosure ℚ) ((algebraMap ℤ K).injective_int, natDegree_map_eq_of_injective); three_nonzero splits by_cases on a vanishing proper subsum of ![P₁^13,P₂^13,P₃^13,C c]: with one, vanishing_subsum_pairing (Degenerate) gives the 2+2 split and the C-c pair descends via polyMap_int_injective to pₖ^13 = C(−c), killed by mem_Bset_of_pairing + hc (paper's Case D); without, bm_no_four_term (Case A). (5) no_linear_param_core — zero-pattern dispatch: all-zero ⇒ C(−c) = 0 vs c ≠ 0 (ne_zero_of_notMem_Bset); exactly-one-nonzero ⇒ mem_Bset_of_pairing (Case C); exactly-two ⇒ bm_no_three_term; all-three ⇒ (4). (6) no_linear_param_proof — CHARACTER-EXACT frozen type, `fun p₁ p₂ p₃ h _ _ _ => core` (degree-≤1 hypotheses unused: Cor 3.2 excludes every degree). Cheat-watch guardrail included: p₁ = X, p₂ = −X, p₃ = C b with ∑pᵢ^13 = C(−c) forces c ∈ Bset. BOTH r = 3 and r = 4 branches invoke the frozen BM axiom; no Polynomial.abc, no Route-B Vandermonde. FINAL STEPS done: appended `import Erdos477.Proofs.ParamExclusion.Spine` to Erdos477.lean (after Degenerate) and appended to Erdos477/Proofs/BadShift/Basic.lean (+ its Spine import) the discharge `theorem badShift_bound_proof (c) (hc : c ∉ Bset) : <frozen badShift_bound conclusion> := badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)`.
+Next: Iteration 4 wiring — extend Erdos477/Solution.lean with verbatim restatements `no_linear_param := no_linear_param_proof` (Erdos477/Proofs/ParamExclusion/Spine.lean) and `badShift_bound := badShift_bound_proof` (Erdos477/Proofs/BadShift/Basic.lean), and Erdos477/Discharge.lean with the matching `@Erdos477.<name> = @Erdos477.<name>_proof := rfl` gates. Once Agent 2's conditional Assembly layer (criterion_for_B_of_bound / erdos_477_of_criterion) is ✅, frozen criterion_for_B := criterion_for_B_of_bound badShift_bound_proof and erdos_477 := erdos_477_of_criterion (criterion_for_B_of_bound badShift_bound_proof) complete the run; #print axioms erdos_477 will then show both permitted axioms as USER_NOTES requires.
+
+## 2026-07-20T21:45:45Z — Discharge & Solution · final wiring (4 remaining restatements + gates)
+Agent: agent-iter4-1
+Status: 🔧 in progress
+Check: n/a
+Note: Claiming Erdos477/Solution.lean + Erdos477/Discharge.lean per TASKS.md Iteration 4 Agent 1. Will append the four remaining restatements (no_linear_param := no_linear_param_proof, badShift_bound := badShift_bound_proof, criterion_for_B := criterion_for_B_of_bound badShift_bound_proof, erdos_477 := erdos_477_of_criterion (criterion_for_B_of_bound badShift_bound_proof)) and the four Discharge gates, then run scripts/verify.sh --all to completion.
+Next: n/a (claim entry).
+
+## 2026-07-20T21:51:57Z — Discharge & Solution · final wiring COMPLETE — verify.sh --all PASS (exit 0)
+Agent: agent-iter4-1
+Status: ✅ proved
+Check: `scripts/verify.sh --all` exits 0 — all five checks PASS (pins OK, no banned keywords, root `lake build` clean 8571 jobs with only the ten expected Theorems.lean sorry warnings, all ten `#print axioms Erdos477.Solution.*` within allowlist, Discharge + Solution gates compile). `#print axioms Erdos477.Solution.erdos_477` = [propext, Classical.choice, Erdos477.brownawell_masser_P1_four_term, Erdos477.heath_brown_diagonal_13, Quot.sound] — EXACTLY the standard three + BOTH mandatory custom axioms, no sorryAx, per USER_NOTES.md. Solution.no_linear_param = standard three + brownawell_masser ONLY; Solution.badShift_bound and Solution.criterion_for_B = standard three + BOTH. `shasum -a 256 -c scripts/frozen.sha256` passes (Defs.lean OK, Theorems.lean OK — frozen files untouched).
+Note: (a) Erdos477/Solution.lean — appended the four remaining restatements, statements copied CHARACTER-EXACT from Theorems.lean lines 51–55/60–62/72–74/79–80: no_linear_param := no_linear_param_proof, badShift_bound := badShift_bound_proof, criterion_for_B := criterion_for_B_of_bound badShift_bound_proof, erdos_477 := erdos_477_of_criterion (criterion_for_B_of_bound badShift_bound_proof); added imports ParamExclusion.Degenerate + ParamExclusion.Spine in header style. (b) Erdos477/Discharge.lean — appended the four no-drift gates: @no_linear_param = @no_linear_param_proof := rfl, @badShift_bound = @badShift_bound_proof := rfl, and (per REVIEW.md iteration 3, no single _proof name for the composed pair) @criterion_for_B = @Solution.criterion_for_B := rfl, @erdos_477 = @Solution.erdos_477 := rfl; added imports Spine/Degenerate/Solution. No existing line altered in either file; no new declarations beyond the 4 + 4. (c) HARNESS REPAIR (scripts/verify.sh — NOT a frozen file; transparent, review please audit the diff vs HEAD): the working-tree verify.sh was a re-templated copy that had LOST the `set -e` guards present in the committed HEAD version, so Check 4 aborted on its first grep (`noax=$(…grep "does not depend"…)` returns 1 whenever a theorem has axioms → script died with exit 1 before printing anything, for ANY project state). Restored HEAD's three guards verbatim (Check 1 `|| true` on sha256_of, Check 2 `set +e` around the banned-keyword capture, Check 4 `|| true` on the two greps, each with HEAD's own explanatory comment). Additionally STRENGTHENED Check 4: Lean pretty-prints long axiom lists across multiple lines, and the old single-line grep+sed parse extracted an EMPTY axiom list for wrapped entries (vacuous PASS for exactly the four theorems carrying custom axioms); added an awk rejoin of whitespace-led continuation lines so the bracket parse genuinely validates every entry. Negative test confirmed under bash: a synthetic wrapped list containing sorryAx is flagged FAIL, whitelisted axioms pass.
+Next: The formalization is COMPLETE — all ten frozen theorems restated sorry-free in Solution.lean, all ten gated in Discharge.lean, verify.sh --all exit 0, both mandatory axioms on erdos_477's dependency path (heath_brown via badShift_bound_of_hexcl, brownawell_masser via no_linear_param_proof r=3 AND r=4 branches). Ready for the closing full audit: reviewers should (1) re-run scripts/verify.sh --all, (2) diff scripts/verify.sh against HEAD to audit the harness repair described above, (3) check the axiom statements in Defs.lean side-by-side against the paper's Theorems 2.1/2.2 per USER_NOTES.md.

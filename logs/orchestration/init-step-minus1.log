@@ -1,28 +1,25 @@
-# init-step-minus1  @ 2026-07-19T19:34:38Z
-# cwd: /Users/siyua/dev/erdos477-FORM
+# init-step-minus1  @ 2026-07-20T20:00:32Z
+# cwd: /Users/siyua/dev/erdos477-formalization
 # output_format: text
 
-Step -1 (SETUP) is complete. Everything the BLUEPRINT's "Part -1" prescribes is in place, and no Stage A+ proof was written — every frozen theorem remains `:= sorry`.
+SETUP (Part −1) is complete. Final summary:
 
-## Summary
+## SETUP complete — Erdős 477 skeleton frozen and building
 
-**Project name:** `Erdos477` (namespace `Erdos477`), built in-place in `/Users/siyua/dev/erdos477-FORM`.
+**Project:** `Erdos477` (Lean 4 `leanprover/lean4:v4.31.0` + Mathlib `v4.31.0`, rev `fabf563a`, pinned in `lake-manifest.json`; cache fetched).
 
-**Frozen theorem names** (all `:= sorry` in `Erdos477/Theorems.lean`):
-- `no_linear_param` — degree-≤1 parametrisation exclusion (feeds the axiom's `hexcl`)
-- `badShift_bound` — the `|S_c(T)| ≤ K·T^(5/6)` estimate
-- `greedy_tiling` — the abstract combinatorial tiling criterion (`∃!`)
-- `criterion_holds` — `Bset` satisfies the criterion
-- `erdos_477` — the headline: thirteenth powers tile ℤ (`∃!` over `(a,m)`)
+**Frozen files & pins** (`scripts/frozen.sha256`):
+- `Erdos477/Defs.lean` — `Bset`, `Dset`, `Qcof` (polymorphic over `CommRing`), `Sset` (classical filter over `Icc (−T) T`), plus **both mandatory axioms in full paper generality** per USER_NOTES.md (which overrides the sketch's specialized forms):
+  - `Erdos477.heath_brown_diagonal_13` = paper's **Theorem 2.2 exactly**: general nonsingular ternary form `F` of degree `k ≥ 3` (nonsingularity = gradient vanishes only at 0 over ℂ), genuine "does not lie on a nonconstant polynomial parametrization of degree ≤ ⌊k/10⌋" exclusion (defined via `IsParamOfDegLE` / `LiesOnParamOfDegLE`), side condition `|N| ≤ cN·X` with the conclusion constant `K` depending only on `F` and `cN`, bound `K·X^(10/k)`.
+  - `Erdos477.brownawell_masser_P1_four_term` = paper's **Theorem 2.1 exactly**: `S`-units of `k(t)^× = RatFunc k` over algebraically closed char-0 `k`, orders at all points of `ℙ¹_k = k ∪ {∞}` (modeled as `Option k`; `ordAtP1` covers finite points and ∞), general `r ≥ 3`, no-vanishing-proper-subsum hypothesis, projective height `projHeightP1 = −∑_P min_i ord_P(uᵢ)`, bound `binom(r−1,2)·(|S|−2)`. `r` is *not* hard-coded to 4.
+- `Erdos477/Theorems.lean` — the **10 frozen statements**, all `:= sorry`: `Dset_neg_mem`, `pow13_injective`, `pow13_sub_pow13_factor`, `cofactor_lower_bound`, `pow13_gap`, `no_linear_param`, `badShift_bound`, `greedy_tiling`, `criterion_for_B`, `erdos_477`.
 
-**Frozen definitions + axioms** (`Erdos477/Defs.lean`, SHA-pinned): `Bset`, `Dset`, `Qcof`, `Sset`, plus **both** axioms USER_NOTES.md permitted — `heath_brown_diagonal_13` (conditional Heath-Brown count, consumed by `badShift_bound`) and `brownawell_masser_P1_four_term` (BM4 four-term S-unit inequality, available for the paper-faithful Route A; expected unused by Route B). Both are listed by fully-qualified name in `scripts/ALLOWED_AXIOMS.txt`.
+**Build:** `lake build` succeeds (8569 jobs) with **exactly the 10 expected `declaration uses 'sorry'` warnings from Theorems.lean** — no errors, no other warnings. Statements were validated pre-freeze with guardrail examples in an uncommitted scratch file (`0 ∈ Bset`, `Qcof (1:ℝ) (−1) = 1`, `|Icc(−T,T)| = 2T+1`, `⌊13/10⌋ = 1`, binomial constants 3/1, both axioms instantiate at the diagonal-13 form and at `r = 4`).
 
-**Skeleton builds:** `lake build` → "Build completed successfully (8569 jobs)", with **only the 5 expected `declaration uses 'sorry'` warnings** from `Theorems.lean` — no errors, no other warnings.
+**Layout:** stage placeholders in `Proofs/{Elementary,Cofactor,ParamExclusion,Greedy,BadShift,Assembly}/Basic.lean`, compiling `Discharge.lean`/`Solution.lean` stubs, root `Erdos477.lean` importing everything. `scripts/ALLOWED_AXIOMS.txt` lists both fully-qualified axiom names.
 
-**verify.sh:** Checks **1 (SHA pins), 2 (banned keywords — `sorry` only in Theorems.lean, both axioms whitelisted), 3 (clean build) PASS**. Checks 4/5 don't pass yet (no `Erdos477.Solution.*` theorems exist while everything is `sorry`) — expected at this stage.
+**verify.sh:** Check 1 (SHA pins) **PASS**, Check 2 (banned keywords) **PASS**, Check 3 (clean build) **PASS**. Check 4 terminates the script (exit 1) because no `Erdos477.Solution.*` declarations exist yet — the expected SETUP-stage failure; Check 5 unreached for the same reason.
 
-**One deviation, logged in PROGRESS.md:** BLUEPRINT's suggested `v4.15.0` pin was replaced by **v4.31.0** (toolchain + Mathlib rev), because v4.15.0's prebuilt `cache` binary fails to run on this macOS (Darwin 25 / Tahoe) with a dyld `SG_READ_ONLY` error; v4.31.0 is stable, has a matching Mathlib rev, and `lake exe cache get` succeeds — consistent with BLUEPRINT's "any recent toolchain with a matching Mathlib rev is fine" clause.
+**PROGRESS.md:** appended the ✅ SETUP entry and a detailed 📝 decision entry recording all modeling choices, including the binding consequence that the sketch's conditional "AXIOM HB" and "BM4" forms are now *proof obligations* derived from the general axioms, and that `no_linear_param` must be proved via Route A so that `#print axioms erdos_477` shows **both** custom axioms.
 
-`Defs.lean`/`Theorems.lean` are byte-frozen (pinned in `scripts/frozen.sha256`) and must not be edited during the proving phase.
-
-# exit=0 timed_out=False @ 2026-07-19T19:47:48Z
+# exit=0 timed_out=False @ 2026-07-20T20:18:11Z

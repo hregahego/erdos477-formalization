@@ -1,84 +1,87 @@
 /-
-  Stage A — Elementary facts L0.1–L0.6 (support lemmas, no frozen theorem).
+  Stage Elementary (Layer 0) — L0.1–L0.6 groundwork.
 
-  Contents (BLUEPRINT Stage A, items A1–A6; SKETCH §2):
-    * A1  `zero_mem_B`, `zero_mem_D`
-    * A2  `dset_neg`                       (symmetry of `Dset`, by swapping `u,v`)
-    * A3  `pow13_inj`, `pow13_eq_iff`, `pow13_eq_neg`
-    * A4  `not_B_ne_zero`
-    * A5  `mem_D_symm_shift`
-    * A6  `dset_eq_sub`                    (set EQUALITY bridging `Dset` to `B - B`)
+  Proves (TASKS.md Iteration 1, Agent 2):
+    * `Dset_neg_mem_proof`     — L0.2, CHARACTER-EXACT the frozen `Dset_neg_mem`
+                                 type; witness swap `(u,v) ↦ (v,u)`, no sign
+                                 manipulation.
+    * `pow13_injective_proof`  — L0.3, CHARACTER-EXACT the frozen
+                                 `pow13_injective` type; genuine injectivity on
+                                 ALL of ℤ via `Odd.pow_injective`.
+    * `zero_mem_Bset`          — L0.1 (witness `m = 0`).
+    * `ne_zero_of_notMem_Bset` — L0.5 (contrapositive of L0.1).
+    * `badShift_iff`           — L0.6 (two applications of L0.2).
+    * `pow13_eq_neg`           — odd-power corollary `x¹³ = −y¹³ → x = −y`
+                                 (used by ParamExclusion and Assembly).
+    * `rat_pow13_int`          — L0.4 (rational 13th roots of integers are
+                                 integers; ℤ integrally closed in ℚ) — needed
+                                 by Route A.
 
-  All support declarations live in `namespace Erdos477`; never shadow a frozen name.
+  Support declarations live in `namespace Erdos477` and never shadow a frozen
+  name; the frozen statements themselves live untouched in
+  `Erdos477/Theorems.lean`.
 -/
 import Erdos477.Defs
 
 namespace Erdos477
 
-/-! ### A1 (L0.1) — `0` lies in `Bset` and in `Dset` -/
-
-/-- **A1 / L0.1.** `0` is a thirteenth power (witness `m = 0`). -/
-theorem zero_mem_B : (0 : ℤ) ∈ Bset := ⟨0, by norm_num⟩
-
-/-- **A1 / L0.1.** `0` lies in the difference set (witnesses `u = v = 0`). -/
-theorem zero_mem_D : (0 : ℤ) ∈ Dset := ⟨0, 0, by norm_num⟩
-
-/-! ### A2 (L0.2) — symmetry of `Dset` -/
-
-/-- **A2 / L0.2.** `Dset` is symmetric: if `d ∈ Dset` then `-d ∈ Dset`. Proved by
-SWAPPING the two witnesses `u, v` (no odd-power sign manipulation). -/
-theorem dset_neg : ∀ d : ℤ, d ∈ Dset → -d ∈ Dset := by
-  rintro d ⟨u, v, rfl⟩
+/-- **L0.2 — `Dset` is symmetric.** From `d = u¹³ − v¹³` swap the witnesses:
+`-d = v¹³ − u¹³`. -/
+theorem Dset_neg_mem_proof {d : ℤ} (hd : d ∈ Dset) : -d ∈ Dset := by
+  obtain ⟨u, v, rfl⟩ := hd
   exact ⟨v, u, by ring⟩
 
-/-! ### A3 (L0.3) — global injectivity of `m ↦ m ^ 13` on `ℤ` -/
+/-- **L0.3 — odd-power injectivity** of `m ↦ m¹³` on all of `ℤ` (13 is odd). -/
+theorem pow13_injective_proof : Function.Injective (fun m : ℤ => m ^ 13) :=
+  Odd.pow_injective (by decide)
 
-private theorem odd_thirteen : Odd (13 : ℕ) := ⟨6, by norm_num⟩
+/-- **L0.1 — `0 ∈ Bset`** (witness `m = 0`). -/
+theorem zero_mem_Bset : (0 : ℤ) ∈ Bset :=
+  ⟨0, by norm_num⟩
 
-/-- **A3 / L0.3.** `m ↦ m ^ 13` is injective on all of `ℤ` (13 is odd, so the
-map is strictly monotone). -/
-theorem pow13_inj : Function.Injective (fun m : ℤ => m ^ 13) :=
-  (Odd.strictMono_pow (R := ℤ) odd_thirteen).injective
+/-- **L0.5 — `c ∉ Bset → c ≠ 0`** (contrapositive of L0.1). -/
+theorem ne_zero_of_notMem_Bset {c : ℤ} (hc : c ∉ Bset) : c ≠ 0 := by
+  rintro rfl
+  exact hc zero_mem_Bset
 
-/-- **A3 / L0.3, corollary.** `x ^ 13 = y ^ 13 ↔ x = y` on `ℤ`. -/
-theorem pow13_eq_iff {x y : ℤ} : x ^ 13 = y ^ 13 ↔ x = y :=
-  ⟨fun h => pow13_inj h, fun h => by rw [h]⟩
+/-- **L0.6 — bad-shift membership reformulation:** each side is the negation of
+the other, so L0.2 applies in both directions. -/
+theorem badShift_iff {c t : ℤ} : c - t ^ 13 ∈ Dset ↔ t ^ 13 - c ∈ Dset := by
+  constructor <;> intro h <;> simpa [neg_sub] using Dset_neg_mem_proof h
 
-/-- **A3 / L0.3, corollary.** `x ^ 13 = -(y ^ 13) → x = -y` on `ℤ`. -/
+/-- **Odd-power sign corollary of L0.3:** `x¹³ = −(y¹³) → x = −y` (rewrite
+`−(y¹³) = (−y)¹³`, then injectivity). -/
 theorem pow13_eq_neg {x y : ℤ} (h : x ^ 13 = -(y ^ 13)) : x = -y := by
-  refine pow13_inj ?_
-  simpa using h.trans (Odd.neg_pow odd_thirteen y).symm
+  apply pow13_injective_proof
+  show x ^ 13 = (-y) ^ 13
+  rw [Odd.neg_pow (by decide : Odd 13)]
+  exact h
 
-/-! ### A4 (L0.5) — a non-thirteenth-power is nonzero -/
+/-- **L0.4 — rational 13th roots of integers are integers.** A rational `d` with
+`d¹³ = c ∈ ℤ` is a root of the monic integer polynomial `X¹³ − C c`, hence
+integral over `ℤ`; `ℤ` is integrally closed in `ℚ`. -/
+theorem rat_pow13_int : ∀ (c : ℤ) (d : ℚ), d ^ 13 = c → ∃ m : ℤ, (m : ℚ) = d := by
+  intro c d h
+  have hint : IsIntegral ℤ d := by
+    refine ⟨Polynomial.X ^ 13 - Polynomial.C c,
+      Polynomial.monic_X_pow_sub_C c (by norm_num), ?_⟩
+    rw [Polynomial.eval₂_sub, Polynomial.eval₂_X_pow, Polynomial.eval₂_C]
+    simp [h]
+  obtain ⟨m, hm⟩ := IsIntegrallyClosed.isIntegral_iff.mp hint
+  exact ⟨m, hm⟩
 
-/-- **A4 / L0.5.** If `c` is not a thirteenth power then `c ≠ 0` (from `zero_mem_B`). -/
-theorem not_B_ne_zero : ∀ c : ℤ, c ∉ Bset → c ≠ 0 := by
-  intro c hc h0
-  exact hc (h0 ▸ zero_mem_B)
+/-! ### Guardrail examples (BLUEPRINT "Cheat watch (Stage Elementary)") -/
 
-/-! ### A5 (L0.6) — shifted symmetry -/
+example : (2 : ℤ) ^ 13 ≠ 3 ^ 13 := fun h => by
+  have := pow13_injective_proof h
+  norm_num at this
 
-/-- **A5 / L0.6.** `c - t ^ 13 ∈ Dset ↔ t ^ 13 - c ∈ Dset` (A2 in both directions). -/
-theorem mem_D_symm_shift : ∀ c t : ℤ, c - t ^ 13 ∈ Dset ↔ t ^ 13 - c ∈ Dset := by
-  intro c t
-  constructor
-  · intro h
-    have := dset_neg _ h
-    simpa using this
-  · intro h
-    have := dset_neg _ h
-    simpa using this
+example : (-2 : ℤ) ^ 13 ≠ 2 ^ 13 := fun h => by
+  have := pow13_injective_proof h
+  norm_num at this
 
-/-! ### A6 — the bridge `Dset = Bset - Bset` -/
-
-/-- **A6.** Genuine set equality bridging the concrete `Dset` with the abstract
-difference set `{d | ∃ x ∈ B, ∃ y ∈ B, d = x - y}` used by `greedy_tiling`. -/
-theorem dset_eq_sub : Dset = {d : ℤ | ∃ x ∈ Bset, ∃ y ∈ Bset, d = x - y} := by
-  ext d
-  constructor
-  · rintro ⟨u, v, rfl⟩
-    exact ⟨u ^ 13, ⟨u, rfl⟩, v ^ 13, ⟨v, rfl⟩, rfl⟩
-  · rintro ⟨x, ⟨u, rfl⟩, y, ⟨v, rfl⟩, rfl⟩
-    exact ⟨u, v, rfl⟩
+-- `Dset_neg_mem_proof` closes on an arbitrary opened witness:
+example (u v : ℤ) : -(u ^ 13 - v ^ 13) ∈ Dset :=
+  Dset_neg_mem_proof ⟨u, v, rfl⟩
 
 end Erdos477

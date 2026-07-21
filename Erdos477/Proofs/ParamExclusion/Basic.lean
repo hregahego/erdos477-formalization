@@ -1,220 +1,320 @@
 /-
-  Stage C — Parametrisation exclusion L2.1, Route B (proves `no_linear_param`).
+  Stage ParamExclusion (Layer 2) — Route-A support toolbox: orders, S-units and
+  heights on ℙ¹ for `RatFunc K` (SKETCH §5.2.1–5.2.2 "Case A/B" ingredients),
+  per TASKS.md Iteration 2 Agent 2 and the 📝 SETUP decision in PROGRESS.md.
 
-  SKETCH §5.1 (Route B, elementary): a triple of polynomials of degree ≤ 1 whose
-  thirteenth powers sum to the constant `-c` must consist of constants, provided
-  `c ∉ Bset`.
+  Support lemmas ONLY: `no_linear_param` itself is NOT stated here (it stays
+  frozen in `Erdos477/Theorems.lean` for the iteration-3 spine). Everything in
+  this file is proved from Mathlib alone — no custom axiom is invoked
+  (`#print axioms`: standard three at most; in particular neither
+  `Erdos477.brownawell_masser_P1_four_term` nor
+  `Erdos477.heath_brown_diagonal_13` may appear), and Mathlib's Mason–Stothers
+  (`Polynomial.abc`) is nowhere used.
 
-  Route A (`brownawell_masser_P1_four_term`) is NOT used anywhere here.
-
-  Contents:
-    * `coeff_lin_pow13`      — the binomial coefficient formula for `(C a * X + C b) ^ 13`.
-    * `two_nonzero_case`     — the `|I| = 2` crux: it forces `c ∈ Bset`.
-    * `linear_coeff_vanish`  — the arithmetic core (C3): the four coefficient
-                               equations `E₀, E₁, E₂, E₁₃` force `a₁ = a₂ = a₃ = 0`.
-    * `no_linear_param_proof`— the frozen statement.
+  Everything works against the frozen `ordAtP1`, `IsSUnitP1`, `projHeightP1`
+  of `Erdos477/Defs.lean` (`Option K` models `ℙ¹_K`; `none` = ∞), over a
+  general `{K : Type*} [Field K]`, adding `[IsAlgClosed K]` only where needed
+  (the spine will instantiate `K := AlgebraicClosure ℚ`).
 -/
 import Erdos477.Defs
-import Erdos477.Proofs.Elementary.Basic
 
 namespace Erdos477
 
-open Polynomial
+open scoped Classical
 
-/-- **C2 (coefficient extraction).** The `k`-th coefficient of `(a·X + b) ^ 13` is
-`C(13,k) · a ^ k · b ^ (13 - k)` (for `k ≤ 13`). -/
-theorem coeff_lin_pow13 (a b : ℤ) (k : ℕ) (hk : k ≤ 13) :
-    ((C a * X + C b : Polynomial ℤ) ^ 13).coeff k
-      = (Nat.choose 13 k : ℤ) * a ^ k * b ^ (13 - k) := by
-  rw [add_pow, Polynomial.finsetSum_coeff]
-  have key : ∀ m : ℕ, ((C a * X) ^ m * C b ^ (13 - m) * (Nat.choose 13 m : ℤ[X])).coeff k
-      = if m = k then (Nat.choose 13 m : ℤ) * a ^ m * b ^ (13 - m) else 0 := by
-    intro m
-    have h : ((C a * X) ^ m * C b ^ (13 - m) * (Nat.choose 13 m : ℤ[X]))
-        = C ((Nat.choose 13 m : ℤ) * a ^ m * b ^ (13 - m)) * X ^ m := by
-      simp only [mul_pow, ← C_pow, ← C_eq_natCast, C_mul]
-      ring
-    rw [h, Polynomial.coeff_C_mul, Polynomial.coeff_X_pow]
-    by_cases hm : m = k
-    · simp [hm]
-    · simp [hm, Ne.symm hm]
-  simp only [key]
-  rw [Finset.sum_ite_eq' (Finset.range 14) k
-    (fun m => (Nat.choose 13 m : ℤ) * a ^ m * b ^ (13 - m))]
-  simp [Finset.mem_range, Nat.lt_succ_of_le hk]
+variable {K : Type*} [Field K]
 
-/-- **C3, the `|I| = 2` case.** If exactly two of the leading coefficients are
-nonzero (here `a` and `a'`), the top two coefficient equations force `a = -a'` and
-`b' = -b`, so the two corresponding polynomials cancel and `c = (-b'') ^ 13 ∈ Bset`. -/
-theorem two_nonzero_case (a a' b b' b'' c : ℤ) (ha' : a' ≠ 0)
-    (E0 : a ^ 13 + a' ^ 13 = 0) (E1 : a ^ 12 * b + a' ^ 12 * b' = 0)
-    (E13 : b ^ 13 + b' ^ 13 + b'' ^ 13 = -c) : c ∈ Bset := by
-  have haa : a = -a' := pow13_eq_neg (by linarith)
-  subst haa
-  have h12 : (-a') ^ 12 * b + a' ^ 12 * b' = a' ^ 12 * (b + b') := by ring
-  rw [h12] at E1
-  have hb : b + b' = 0 := by
-    rcases mul_eq_zero.mp E1 with h | h
-    · exact absurd (pow_eq_zero_iff (n := 12) (by norm_num) |>.mp h) ha'
-    · exact h
-  have hb' : b' = -b := by linarith
-  subst hb'
-  refine ⟨-b'', ?_⟩
-  have : b ^ 13 + (-b) ^ 13 = 0 := by ring
-  have hcc : b'' ^ 13 = -c := by linarith
-  linarith [hcc, (by ring : (-b'') ^ 13 = -(b'' ^ 13))]
+/-! ### Definitional unfoldings of the frozen `ordAtP1` -/
 
-/-- **C3 (arithmetic core).** The four coefficient equations coming from
-`∑ pᵢ ^ 13 = C (-c)` force every leading coefficient to vanish, given `c ∉ Bset`. -/
-theorem linear_coeff_vanish (c a₁ a₂ a₃ b₁ b₂ b₃ : ℤ) (hc : c ∉ Bset)
-    (E0 : a₁ ^ 13 + a₂ ^ 13 + a₃ ^ 13 = 0)
-    (E1 : a₁ ^ 12 * b₁ + a₂ ^ 12 * b₂ + a₃ ^ 12 * b₃ = 0)
-    (E2 : a₁ ^ 11 * b₁ ^ 2 + a₂ ^ 11 * b₂ ^ 2 + a₃ ^ 11 * b₃ ^ 2 = 0)
-    (E13 : b₁ ^ 13 + b₂ ^ 13 + b₃ ^ 13 = -c) :
-    a₁ = 0 ∧ a₂ = 0 ∧ a₃ = 0 := by
-  -- a singleton nonzero leading coefficient is impossible: `E0` makes it zero.
-  have single : ∀ x y z : ℤ, x = 0 → y = 0 → x ^ 13 + y ^ 13 + z ^ 13 = 0 → z = 0 := by
-    intro x y z hx hy h
-    subst hx; subst hy
-    have : z ^ 13 = 0 := by linarith [(by ring : (0:ℤ) ^ 13 = 0)]
-    exact pow_eq_zero_iff (n := 13) (by norm_num) |>.mp this
-  by_cases h1 : a₁ = 0 <;> by_cases h2 : a₂ = 0 <;> by_cases h3 : a₃ = 0
-  · exact ⟨h1, h2, h3⟩
-  -- exactly one nonzero
-  · exact absurd (single a₁ a₂ a₃ h1 h2 E0) h3
-  · exact absurd (single a₁ a₃ a₂ h1 h3 (by linarith)) h2
-  · exact absurd (hc (two_nonzero_case a₂ a₃ b₂ b₃ b₁ c h3
-      (by rw [h1] at E0; linarith [(by ring : (0:ℤ) ^ 13 = 0)])
-      (by rw [h1] at E1; linarith [(by ring : (0:ℤ) ^ 12 * b₁ = 0)])
-      (by linarith))) (by trivial)
-  · exact absurd (single a₂ a₃ a₁ h2 h3 (by linarith)) h1
-  · exact absurd (hc (two_nonzero_case a₁ a₃ b₁ b₃ b₂ c h3
-      (by rw [h2] at E0; linarith [(by ring : (0:ℤ) ^ 13 = 0)])
-      (by rw [h2] at E1; linarith [(by ring : (0:ℤ) ^ 12 * b₂ = 0)])
-      (by linarith))) (by trivial)
-  · exact absurd (hc (two_nonzero_case a₁ a₂ b₁ b₂ b₃ c h2
-      (by rw [h3] at E0; linarith [(by ring : (0:ℤ) ^ 13 = 0)])
-      (by rw [h3] at E1; linarith [(by ring : (0:ℤ) ^ 12 * b₃ = 0)])
-      (by linarith))) (by trivial)
-  -- all three nonzero: the Vandermonde / equal-ratio argument, over ℚ
-  · exfalso
-    have hA₁ : (a₁ : ℚ) ≠ 0 := Int.cast_ne_zero.mpr h1
-    have hA₂ : (a₂ : ℚ) ≠ 0 := Int.cast_ne_zero.mpr h2
-    have hA₃ : (a₃ : ℚ) ≠ 0 := Int.cast_ne_zero.mpr h3
-    obtain ⟨q₁, hb₁⟩ : ∃ q : ℚ, (b₁ : ℚ) = q * (a₁ : ℚ) :=
-      ⟨(b₁ : ℚ) / (a₁ : ℚ), by field_simp⟩
-    obtain ⟨q₂, hb₂⟩ : ∃ q : ℚ, (b₂ : ℚ) = q * (a₂ : ℚ) :=
-      ⟨(b₂ : ℚ) / (a₂ : ℚ), by field_simp⟩
-    obtain ⟨q₃, hb₃⟩ : ∃ q : ℚ, (b₃ : ℚ) = q * (a₃ : ℚ) :=
-      ⟨(b₃ : ℚ) / (a₃ : ℚ), by field_simp⟩
-    have F0 : (a₁ : ℚ) ^ 13 + (a₂ : ℚ) ^ 13 + (a₃ : ℚ) ^ 13 = 0 := by exact_mod_cast E0
-    have F1 : (a₁ : ℚ) ^ 13 * q₁ + (a₂ : ℚ) ^ 13 * q₂ + (a₃ : ℚ) ^ 13 * q₃ = 0 := by
-      have : (a₁ : ℚ) ^ 12 * (b₁ : ℚ) + (a₂ : ℚ) ^ 12 * (b₂ : ℚ)
-          + (a₃ : ℚ) ^ 12 * (b₃ : ℚ) = 0 := by exact_mod_cast E1
-      rw [hb₁, hb₂, hb₃] at this
-      linear_combination this
-    have F2 : (a₁ : ℚ) ^ 13 * q₁ ^ 2 + (a₂ : ℚ) ^ 13 * q₂ ^ 2
-        + (a₃ : ℚ) ^ 13 * q₃ ^ 2 = 0 := by
-      have : (a₁ : ℚ) ^ 11 * (b₁ : ℚ) ^ 2 + (a₂ : ℚ) ^ 11 * (b₂ : ℚ) ^ 2
-          + (a₃ : ℚ) ^ 11 * (b₃ : ℚ) ^ 2 = 0 := by exact_mod_cast E2
-      rw [hb₁, hb₂, hb₃] at this
-      linear_combination this
-    have F13 : (b₁ : ℚ) ^ 13 + (b₂ : ℚ) ^ 13 + (b₃ : ℚ) ^ 13 = -(c : ℚ) := by
-      exact_mod_cast E13
-    -- `∑ wᵢ (qᵢ - qⱼ)(qᵢ - qₖ) = 0` isolates a single term
-    have hw₁ : ((q₁ - q₂) * (q₁ - q₃)) = 0 := by
-      have h : (a₁ : ℚ) ^ 13 * ((q₁ - q₂) * (q₁ - q₃)) = 0 := by
-        linear_combination F2 - (q₂ + q₃) * F1 + q₂ * q₃ * F0
-      rcases mul_eq_zero.mp h with h | h
-      · exact absurd (pow_eq_zero_iff (n := 13) (by norm_num) |>.mp h) hA₁
-      · exact h
-    have hw₂ : ((q₂ - q₁) * (q₂ - q₃)) = 0 := by
-      have h : (a₂ : ℚ) ^ 13 * ((q₂ - q₁) * (q₂ - q₃)) = 0 := by
-        linear_combination F2 - (q₁ + q₃) * F1 + q₁ * q₃ * F0
-      rcases mul_eq_zero.mp h with h | h
-      · exact absurd (pow_eq_zero_iff (n := 13) (by norm_num) |>.mp h) hA₂
-      · exact h
-    have hw₃ : ((q₃ - q₁) * (q₃ - q₂)) = 0 := by
-      have h : (a₃ : ℚ) ^ 13 * ((q₃ - q₁) * (q₃ - q₂)) = 0 := by
-        linear_combination F2 - (q₁ + q₂) * F1 + q₁ * q₂ * F0
-      rcases mul_eq_zero.mp h with h | h
-      · exact absurd (pow_eq_zero_iff (n := 13) (by norm_num) |>.mp h) hA₃
-      · exact h
-    -- hence all three ratios coincide
-    have h12 : q₁ = q₂ := by
-      by_contra hne
-      have e13 : q₁ = q₃ := by
-        rcases mul_eq_zero.mp hw₁ with h | h
-        · exact absurd (sub_eq_zero.mp h) hne
-        · exact sub_eq_zero.mp h
-      have e23 : q₂ = q₃ := by
-        rcases mul_eq_zero.mp hw₂ with h | h
-        · exact absurd (sub_eq_zero.mp h).symm hne
-        · exact sub_eq_zero.mp h
-      exact hne (e13.trans e23.symm)
-    have h13 : q₁ = q₃ := by
-      by_contra hne
-      have e12 : q₁ = q₂ := h12
-      have e23 : q₃ = q₂ := by
-        rcases mul_eq_zero.mp hw₃ with h | h
-        · exact absurd (sub_eq_zero.mp h).symm hne
-        · exact sub_eq_zero.mp h
-      exact hne (e12.trans e23.symm)
-    -- common ratio ⇒ `-c = q₁ ^ 13 * (∑ aᵢ ^ 13) = 0`
-    rw [hb₁, hb₂, hb₃, ← h12, ← h13] at F13
-    have hc0 : (c : ℚ) = 0 := by linear_combination F13 - q₁ ^ 13 * F0
-    have : c = 0 := by exact_mod_cast hc0
-    exact hc (this ▸ zero_mem_B)
+theorem ordAtP1_some_def (a : K) (f : RatFunc K) :
+    ordAtP1 (some a) f = (f.num.rootMultiplicity a : ℤ) - (f.denom.rootMultiplicity a : ℤ) :=
+  rfl
 
-/-- **L2.1 / Stage C — the frozen `no_linear_param`.** For `c ∉ Bset`, every triple
-of polynomials of degree ≤ 1 with `p₁ ^ 13 + p₂ ^ 13 + p₃ ^ 13 = C (-c)` consists of
-constants. This is exactly the exclusion hypothesis `hexcl` of
-`heath_brown_diagonal_13` at `M = -c`. -/
-theorem no_linear_param_proof (c : ℤ) (hc : c ∉ Bset) :
-    ∀ p₁ p₂ p₃ : Polynomial ℤ,
-      p₁ ^ 13 + p₂ ^ 13 + p₃ ^ 13 = Polynomial.C (-c) →
-      p₁.natDegree ≤ 1 → p₂.natDegree ≤ 1 → p₃.natDegree ≤ 1 →
-      p₁.natDegree = 0 ∧ p₂.natDegree = 0 ∧ p₃.natDegree = 0 := by
-  intro p₁ p₂ p₃ hsum h1 h2 h3
-  -- C1: write each `pᵢ` as `C aᵢ * X + C bᵢ`
-  obtain ⟨a₁, b₁, hp₁⟩ : ∃ a b, p₁ = C a * X + C b :=
-    ⟨_, _, eq_X_add_C_of_natDegree_le_one h1⟩
-  obtain ⟨a₂, b₂, hp₂⟩ : ∃ a b, p₂ = C a * X + C b :=
-    ⟨_, _, eq_X_add_C_of_natDegree_le_one h2⟩
-  obtain ⟨a₃, b₃, hp₃⟩ : ∃ a b, p₃ = C a * X + C b :=
-    ⟨_, _, eq_X_add_C_of_natDegree_le_one h3⟩
-  -- C2: the coefficient equations
-  have hco : ∀ k : ℕ, k ≤ 13 →
-      (Nat.choose 13 k : ℤ) * a₁ ^ k * b₁ ^ (13 - k)
-      + (Nat.choose 13 k : ℤ) * a₂ ^ k * b₂ ^ (13 - k)
-      + (Nat.choose 13 k : ℤ) * a₃ ^ k * b₃ ^ (13 - k)
-        = if k = 0 then -c else 0 := by
-    intro k hk
-    rw [← coeff_lin_pow13 a₁ b₁ k hk, ← coeff_lin_pow13 a₂ b₂ k hk,
-      ← coeff_lin_pow13 a₃ b₃ k hk, ← Polynomial.coeff_add, ← Polynomial.coeff_add,
-      ← hp₁, ← hp₂, ← hp₃, hsum]
-    exact Polynomial.coeff_C
-  have E0 : a₁ ^ 13 + a₂ ^ 13 + a₃ ^ 13 = 0 := by
-    have := hco 13 (le_refl _); norm_num at this; linarith
-  have E1' : (13 : ℤ) * (a₁ ^ 12 * b₁ + a₂ ^ 12 * b₂ + a₃ ^ 12 * b₃) = 0 := by
-    have := hco 12 (by norm_num); norm_num at this; linarith
-  have E2' : (78 : ℤ) * (a₁ ^ 11 * b₁ ^ 2 + a₂ ^ 11 * b₂ ^ 2 + a₃ ^ 11 * b₃ ^ 2) = 0 := by
-    have := hco 11 (by norm_num)
-    rw [show Nat.choose 13 11 = 78 from rfl] at this
-    norm_num at this; linarith
-  have E13 : b₁ ^ 13 + b₂ ^ 13 + b₃ ^ 13 = -c := by
-    have := hco 0 (by norm_num); norm_num at this; linarith
-  have E1 : a₁ ^ 12 * b₁ + a₂ ^ 12 * b₂ + a₃ ^ 12 * b₃ = 0 := by
-    rcases mul_eq_zero.mp E1' with h | h
-    · norm_num at h
-    · exact h
-  have E2 : a₁ ^ 11 * b₁ ^ 2 + a₂ ^ 11 * b₂ ^ 2 + a₃ ^ 11 * b₃ ^ 2 = 0 := by
-    rcases mul_eq_zero.mp E2' with h | h
-    · norm_num at h
-    · exact h
-  -- C3
-  obtain ⟨ha₁, ha₂, ha₃⟩ := linear_coeff_vanish c a₁ a₂ a₃ b₁ b₂ b₃ hc E0 E1 E2 E13
-  subst ha₁; subst ha₂; subst ha₃
-  refine ⟨?_, ?_, ?_⟩ <;> simp [hp₁, hp₂, hp₃]
+theorem ordAtP1_none_def (f : RatFunc K) : ordAtP1 (none : Option K) f = -f.intDegree :=
+  rfl
+
+/-! ### (a) Representation independence: `ordAtP1` through ANY nonzero fraction
+
+The frozen `ordAtP1` is defined via the coprime `num`/`denom` of `RatFunc`.
+These two lemmas let every later computation use an arbitrary representation
+`f = p / q` with `p, q ≠ 0` (not necessarily coprime): cross-multiplying
+`f.num * q = p * f.denom` and using additivity of `rootMultiplicity` and
+`natDegree` over products cancels the common factor. -/
+
+theorem ordAtP1_eq_of_div (p q : Polynomial K) (hp : p ≠ 0) (hq : q ≠ 0) (f : RatFunc K)
+    (hf : f = algebraMap (Polynomial K) (RatFunc K) p / algebraMap (Polynomial K) (RatFunc K) q) :
+    ∀ a : K, ordAtP1 (some a) f = (p.rootMultiplicity a : ℤ) - (q.rootMultiplicity a : ℤ) := by
+  intro a
+  have hf0 : f ≠ 0 := by
+    rw [hf]
+    exact div_ne_zero (RatFunc.algebraMap_ne_zero hp) (RatFunc.algebraMap_ne_zero hq)
+  have hnum : f.num ≠ 0 := RatFunc.num_ne_zero hf0
+  have hden : f.denom ≠ 0 := RatFunc.denom_ne_zero f
+  have hcross : f.num * q = p * f.denom := (RatFunc.num_mul_eq_mul_denom_iff hq).mpr hf
+  have h1 : Polynomial.rootMultiplicity a (f.num * q) =
+      Polynomial.rootMultiplicity a (p * f.denom) := by rw [hcross]
+  rw [Polynomial.rootMultiplicity_mul (mul_ne_zero hnum hq),
+    Polynomial.rootMultiplicity_mul (mul_ne_zero hp hden)] at h1
+  rw [ordAtP1_some_def]
+  omega
+
+theorem ordAtP1_none_eq (p q : Polynomial K) (hp : p ≠ 0) (hq : q ≠ 0) (f : RatFunc K)
+    (hf : f = algebraMap (Polynomial K) (RatFunc K) p / algebraMap (Polynomial K) (RatFunc K) q) :
+    ordAtP1 (none : Option K) f = (q.natDegree : ℤ) - (p.natDegree : ℤ) := by
+  have hf0 : f ≠ 0 := by
+    rw [hf]
+    exact div_ne_zero (RatFunc.algebraMap_ne_zero hp) (RatFunc.algebraMap_ne_zero hq)
+  have hnum : f.num ≠ 0 := RatFunc.num_ne_zero hf0
+  have hden : f.denom ≠ 0 := RatFunc.denom_ne_zero f
+  have hcross : f.num * q = p * f.denom := (RatFunc.num_mul_eq_mul_denom_iff hq).mpr hf
+  have h1 : (f.num * q).natDegree = (p * f.denom).natDegree := by rw [hcross]
+  rw [Polynomial.natDegree_mul hnum hq, Polynomial.natDegree_mul hp hden] at h1
+  rw [ordAtP1_none_def, RatFunc.intDegree]
+  omega
+
+/-! ### (b) Order computations: constants, polynomials, products, powers -/
+
+theorem ratFuncC_ne_zero {a : K} (ha : a ≠ 0) : (RatFunc.C a : RatFunc K) ≠ 0 :=
+  fun h => ha (RatFunc.C_injective (h.trans (map_zero RatFunc.C).symm))
+
+theorem ordAtP1_C (a : K) (_ha : a ≠ 0) : ∀ P : Option K, ordAtP1 P (RatFunc.C a) = 0 := by
+  intro P
+  match P with
+  | none => rw [ordAtP1_none_def, RatFunc.intDegree_C, neg_zero]
+  | some b =>
+    rw [ordAtP1_some_def, RatFunc.num_C, RatFunc.denom_C, Polynomial.rootMultiplicity_C,
+      ← Polynomial.C_1, Polynomial.rootMultiplicity_C]
+    simp
+
+theorem ordAtP1_one (P : Option K) : ordAtP1 P (1 : RatFunc K) = 0 := by
+  have h : (1 : RatFunc K) = RatFunc.C 1 := (map_one RatFunc.C).symm
+  rw [h]
+  exact ordAtP1_C 1 one_ne_zero P
+
+theorem ordAtP1_algebraMap (p : Polynomial K) (a : K) :
+    ordAtP1 (some a) (algebraMap (Polynomial K) (RatFunc K) p) = (p.rootMultiplicity a : ℤ) := by
+  rw [ordAtP1_some_def, RatFunc.num_algebraMap, RatFunc.denom_algebraMap, ← Polynomial.C_1,
+    Polynomial.rootMultiplicity_C]
+  simp
+
+theorem ordAtP1_algebraMap_none (p : Polynomial K) :
+    ordAtP1 (none : Option K) (algebraMap (Polynomial K) (RatFunc K) p) = -(p.natDegree : ℤ) := by
+  rw [ordAtP1_none_def, RatFunc.intDegree_polynomial]
+
+theorem ordAtP1_mul {f g : RatFunc K} (hf : f ≠ 0) (hg : g ≠ 0) (P : Option K) :
+    ordAtP1 P (f * g) = ordAtP1 P f + ordAtP1 P g := by
+  match P with
+  | none =>
+    rw [ordAtP1_none_def, ordAtP1_none_def, ordAtP1_none_def, RatFunc.intDegree_mul hf hg]
+    ring
+  | some a =>
+    have hrep : f * g = algebraMap (Polynomial K) (RatFunc K) (f.num * g.num) /
+        algebraMap (Polynomial K) (RatFunc K) (f.denom * g.denom) := by
+      rw [map_mul, map_mul, ← div_mul_div_comm, RatFunc.num_div_denom, RatFunc.num_div_denom]
+    rw [ordAtP1_eq_of_div (f.num * g.num) (f.denom * g.denom)
+      (mul_ne_zero (RatFunc.num_ne_zero hf) (RatFunc.num_ne_zero hg))
+      (mul_ne_zero (RatFunc.denom_ne_zero f) (RatFunc.denom_ne_zero g)) (f * g) hrep a,
+      Polynomial.rootMultiplicity_mul
+        (mul_ne_zero (RatFunc.num_ne_zero hf) (RatFunc.num_ne_zero hg)),
+      Polynomial.rootMultiplicity_mul
+        (mul_ne_zero (RatFunc.denom_ne_zero f) (RatFunc.denom_ne_zero g)),
+      ordAtP1_some_def, ordAtP1_some_def]
+    push_cast
+    ring
+
+theorem ordAtP1_pow {f : RatFunc K} (hf : f ≠ 0) (n : ℕ) (P : Option K) :
+    ordAtP1 P (f ^ n) = (n : ℤ) * ordAtP1 P f := by
+  induction n with
+  | zero => rw [pow_zero, ordAtP1_one]; simp
+  | succ n ih =>
+    rw [pow_succ, ordAtP1_mul (pow_ne_zero n hf) hf P, ih]
+    push_cast
+    ring
+
+theorem ordAtP1_neg (f : RatFunc K) (P : Option K) : ordAtP1 P (-f) = ordAtP1 P f := by
+  rcases eq_or_ne f 0 with rfl | hf
+  · rw [neg_zero]
+  have hC : (RatFunc.C (-1 : K) : RatFunc K) ≠ 0 := ratFuncC_ne_zero (by norm_num)
+  have hrep : -f = RatFunc.C (-1 : K) * f := by
+    rw [map_neg, map_one, neg_one_mul]
+  rw [hrep, ordAtP1_mul hC hf P, ordAtP1_C (-1 : K) (by norm_num) P, zero_add]
+
+/-! ### (c) Constancy criteria (SKETCH §5.2.2 "Case C/D orders argument")
+
+Over an algebraically closed field, a nonzero rational function with order `0`
+at EVERY point of `ℙ¹` (zeros and poles nowhere) is a constant; consequently a
+rational function whose 13th power is a nonzero constant is itself constant. -/
+
+theorem exists_C_of_forall_ordAtP1_eq_zero [IsAlgClosed K] (f : RatFunc K) (hf : f ≠ 0)
+    (h : ∀ P : Option K, ordAtP1 P f = 0) : ∃ a : K, f = RatFunc.C a := by
+  have hnum : f.num ≠ 0 := RatFunc.num_ne_zero hf
+  have hden : f.denom ≠ 0 := RatFunc.denom_ne_zero f
+  -- `num` and `denom` are coprime, so the vanishing order-difference at each
+  -- point forces BOTH multiplicities to vanish: neither has any root.
+  have hkey : ∀ a : K, ¬f.num.IsRoot a ∧ ¬f.denom.IsRoot a := by
+    intro a
+    have hord := h (some a)
+    rw [ordAtP1_some_def] at hord
+    have hcommon : ¬(f.num.IsRoot a ∧ f.denom.IsRoot a) := by
+      rintro ⟨h1, h2⟩
+      obtain ⟨u, v, huv⟩ := RatFunc.isCoprime_num_denom f
+      have heval := congrArg (Polynomial.eval a) huv
+      simp [h1.eq_zero, h2.eq_zero] at heval
+    constructor
+    · intro h1
+      have hm1 : 0 < f.num.rootMultiplicity a := (Polynomial.rootMultiplicity_pos hnum).mpr h1
+      have hm2 : 0 < f.denom.rootMultiplicity a := by omega
+      exact hcommon ⟨h1, (Polynomial.rootMultiplicity_pos hden).mp hm2⟩
+    · intro h2
+      have hm2 : 0 < f.denom.rootMultiplicity a := (Polynomial.rootMultiplicity_pos hden).mpr h2
+      have hm1 : 0 < f.num.rootMultiplicity a := by omega
+      exact hcommon ⟨(Polynomial.rootMultiplicity_pos hnum).mp hm1, h2⟩
+  -- over an algebraically closed field, rootless nonzero polynomials are constants
+  have hdnum : f.num.natDegree = 0 := by
+    by_contra hne
+    obtain ⟨a, ha⟩ := IsAlgClosed.exists_root f.num (by
+      rw [Polynomial.degree_eq_natDegree hnum]
+      exact_mod_cast hne)
+    exact (hkey a).1 ha
+  have hdden : f.denom.natDegree = 0 := by
+    by_contra hne
+    obtain ⟨a, ha⟩ := IsAlgClosed.exists_root f.denom (by
+      rw [Polynomial.degree_eq_natDegree hden]
+      exact_mod_cast hne)
+    exact (hkey a).2 ha
+  obtain ⟨cn, hcn⟩ : ∃ cn : K, f.num = Polynomial.C cn :=
+    ⟨f.num.coeff 0, Polynomial.eq_C_of_natDegree_eq_zero hdnum⟩
+  obtain ⟨cd, hcd⟩ : ∃ cd : K, f.denom = Polynomial.C cd :=
+    ⟨f.denom.coeff 0, Polynomial.eq_C_of_natDegree_eq_zero hdden⟩
+  refine ⟨cn / cd, ?_⟩
+  rw [← RatFunc.num_div_denom f, hcn, hcd, RatFunc.algebraMap_C, RatFunc.algebraMap_C,
+    ← map_div₀]
+
+theorem exists_C_of_pow13_eq_C [IsAlgClosed K] (f : RatFunc K) (a : K) (ha : a ≠ 0)
+    (h : f ^ 13 = RatFunc.C a) : ∃ b : K, f = RatFunc.C b := by
+  have hf : f ≠ 0 := by
+    rintro rfl
+    rw [zero_pow (by norm_num : (13 : ℕ) ≠ 0)] at h
+    exact ratFuncC_ne_zero ha h.symm
+  refine exists_C_of_forall_ordAtP1_eq_zero f hf fun P => ?_
+  have h13 : ((13 : ℕ) : ℤ) * ordAtP1 P f = 0 := by
+    rw [← ordAtP1_pow hf 13 P, h, ordAtP1_C a ha P]
+  omega
+
+/-! ### (d) S-unit constructors and closure properties -/
+
+theorem isSUnitP1_C (S : Finset (Option K)) {a : K} (ha : a ≠ 0) :
+    IsSUnitP1 S (RatFunc.C a) :=
+  ⟨ratFuncC_ne_zero ha, fun P _ => ordAtP1_C a ha P⟩
+
+theorem isSUnitP1_algebraMap (S : Finset (Option K)) (p : Polynomial K) (hp : p ≠ 0)
+    (hnone : (none : Option K) ∈ S) (hroots : ∀ a : K, p.IsRoot a → some a ∈ S) :
+    IsSUnitP1 S (algebraMap (Polynomial K) (RatFunc K) p) := by
+  refine ⟨RatFunc.algebraMap_ne_zero hp, fun P hP => ?_⟩
+  match P with
+  | none => exact absurd hnone hP
+  | some a =>
+    rw [ordAtP1_algebraMap,
+      Polynomial.rootMultiplicity_eq_zero (fun hroot => hP (hroots a hroot))]
+    simp
+
+theorem IsSUnitP1.mul {S : Finset (Option K)} {f g : RatFunc K}
+    (hf : IsSUnitP1 S f) (hg : IsSUnitP1 S g) : IsSUnitP1 S (f * g) :=
+  ⟨mul_ne_zero hf.1 hg.1, fun P hP => by
+    rw [ordAtP1_mul hf.1 hg.1 P, hf.2 P hP, hg.2 P hP, add_zero]⟩
+
+theorem IsSUnitP1.pow {S : Finset (Option K)} {f : RatFunc K}
+    (hf : IsSUnitP1 S f) (n : ℕ) : IsSUnitP1 S (f ^ n) :=
+  ⟨pow_ne_zero n hf.1, fun P hP => by rw [ordAtP1_pow hf.1 n P, hf.2 P hP, mul_zero]⟩
+
+theorem IsSUnitP1.neg {S : Finset (Option K)} {f : RatFunc K}
+    (hf : IsSUnitP1 S f) : IsSUnitP1 S (-f) :=
+  ⟨neg_ne_zero.mpr hf.1, fun P hP => by rw [ordAtP1_neg, hf.2 P hP]⟩
+
+/-! ### (e) The height computation (SKETCH §5.2.1, dehomogenized)
+
+For a tuple of nonzero polynomials one of which is a nonzero constant, the
+projective height is exactly the maximum of the degrees: at every finite point
+all orders are `≥ 0` and the constant coordinate contributes `0`, so the
+pointwise `⨅` vanishes and the `finsum` has support inside `{∞}`; at `∞` the
+`⨅` of the `-(natDegree)`s is `-(max natDegree)`. -/
+
+theorem projHeightP1_algebraMap {r : ℕ} (hr : 0 < r) (q : Fin r → Polynomial K)
+    (hq : ∀ i, q i ≠ 0) (i₀ : Fin r) (h₀ : (q i₀).natDegree = 0) :
+    projHeightP1 (fun i => algebraMap (Polynomial K) (RatFunc K) (q i)) =
+      ((Finset.univ.sup fun i => (q i).natDegree : ℕ) : ℤ) := by
+  haveI : Nonempty (Fin r) := Fin.pos_iff_nonempty.mp hr
+  -- the distinguished constant coordinate has no roots
+  have hrm₀ : ∀ a : K, (q i₀).rootMultiplicity a = 0 := by
+    intro a
+    apply Polynomial.rootMultiplicity_eq_zero
+    intro hroot
+    rw [Polynomial.eq_C_of_natDegree_eq_zero h₀] at hroot
+    have hc : (q i₀).coeff 0 = 0 := by simpa [Polynomial.IsRoot] using hroot
+    exact hq i₀ (by rw [Polynomial.eq_C_of_natDegree_eq_zero h₀, hc, Polynomial.C_0])
+  -- at every finite point the pointwise minimum of the orders is 0
+  have hfin : ∀ a : K,
+      (⨅ i, ordAtP1 (some a) (algebraMap (Polynomial K) (RatFunc K) (q i))) = 0 := by
+    intro a
+    refine le_antisymm ?_ ?_
+    · have hle : (⨅ i, ordAtP1 (some a) (algebraMap (Polynomial K) (RatFunc K) (q i))) ≤
+          ordAtP1 (some a) (algebraMap (Polynomial K) (RatFunc K) (q i₀)) :=
+        ciInf_le (Set.Finite.bddBelow (Set.finite_range _)) i₀
+      rwa [ordAtP1_algebraMap, hrm₀ a, Nat.cast_zero] at hle
+    · refine le_ciInf fun i => ?_
+      rw [ordAtP1_algebraMap]
+      exact Int.natCast_nonneg _
+  -- at ∞ the pointwise minimum is minus the maximal degree
+  have hnone : (⨅ i, ordAtP1 (none : Option K) (algebraMap (Polynomial K) (RatFunc K) (q i))) =
+      -((Finset.univ.sup fun i => (q i).natDegree : ℕ) : ℤ) := by
+    obtain ⟨i₁, -, hi₁⟩ := Finset.exists_mem_eq_sup (Finset.univ : Finset (Fin r))
+      ⟨i₀, Finset.mem_univ i₀⟩ (fun i => (q i).natDegree)
+    refine le_antisymm ?_ ?_
+    · have hle : (⨅ i, ordAtP1 (none : Option K) (algebraMap (Polynomial K) (RatFunc K) (q i))) ≤
+          ordAtP1 (none : Option K) (algebraMap (Polynomial K) (RatFunc K) (q i₁)) :=
+        ciInf_le (Set.Finite.bddBelow (Set.finite_range _)) i₁
+      rw [ordAtP1_algebraMap_none] at hle
+      rw [hi₁]
+      exact hle
+    · refine le_ciInf fun i => ?_
+      rw [ordAtP1_algebraMap_none]
+      have hle : (q i).natDegree ≤ Finset.univ.sup fun i => (q i).natDegree :=
+        Finset.le_sup (f := fun i => (q i).natDegree) (Finset.mem_univ i)
+      omega
+  -- the finsum over ℙ¹ has support inside {∞}
+  have hsum : (∑ᶠ P : Option K,
+        ⨅ i, ordAtP1 P (algebraMap (Polynomial K) (RatFunc K) (q i))) =
+      ⨅ i, ordAtP1 (none : Option K) (algebraMap (Polynomial K) (RatFunc K) (q i)) := by
+    refine finsum_eq_single _ (none : Option K) fun P hP => ?_
+    match P with
+    | some a => exact hfin a
+    | none => exact absurd rfl hP
+  simp only [projHeightP1]
+  rw [hsum, hnone, neg_neg]
+
+/-! ### (f) The |S| count: roots of `p` together with ∞ -/
+
+theorem card_roots_option_none_le (p : Polynomial K) :
+    (((p.roots.toFinset.image (some : K → Option K)) ∪ {(none : Option K)}).card : ℤ) ≤
+      (p.natDegree : ℤ) + 1 := by
+  have h1 : ((p.roots.toFinset.image (some : K → Option K)) ∪ {(none : Option K)}).card ≤
+      (p.roots.toFinset.image (some : K → Option K)).card + 1 :=
+    le_trans (Finset.card_union_le _ _) (by simp)
+  have h2 : (p.roots.toFinset.image (some : K → Option K)).card ≤ p.roots.toFinset.card :=
+    Finset.card_image_le
+  have h3 : p.roots.toFinset.card ≤ Multiset.card p.roots := p.roots.toFinset_card_le
+  have h4 : Multiset.card p.roots ≤ p.natDegree := p.card_roots'
+  omega
+
+/-! ### (g) The nonconstancy bridge: `algebraMap` vs `RatFunc.C` -/
+
+theorem algebraMap_polynomial_eq_C_iff (p : Polynomial K) (a : K) :
+    algebraMap (Polynomial K) (RatFunc K) p = RatFunc.C a ↔ p = Polynomial.C a := by
+  constructor
+  · intro h
+    apply RatFunc.algebraMap_injective K
+    rw [h, RatFunc.algebraMap_C]
+  · rintro rfl
+    exact RatFunc.algebraMap_C a
 
 end Erdos477

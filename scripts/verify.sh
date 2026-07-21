@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verification harness for the Erdős 477 (thirteenth-power tiling) formalization.
+# Verification harness for a Lean 4 + Mathlib formalization.
 #
 # TEMPLATE: set PROJECT to your project's source-dir / namespace name and fill
 # ALL_THEOREMS with the names you froze in Theorems.lean. Nothing else needs to
@@ -48,7 +48,18 @@ set -euo pipefail
 # The project source-dir / root namespace (the directory holding Defs.lean).
 PROJECT="Erdos477"
 # The frozen theorem names (= <PROJECT>.Solution.<name> = <PROJECT>.<name>).
-ALL_THEOREMS=("no_linear_param" "badShift_bound" "greedy_tiling" "criterion_holds" "erdos_477")
+ALL_THEOREMS=(
+    "Dset_neg_mem"
+    "pow13_injective"
+    "pow13_sub_pow13_factor"
+    "cofactor_lower_bound"
+    "pow13_gap"
+    "no_linear_param"
+    "badShift_bound"
+    "greedy_tiling"
+    "criterion_for_B"
+    "erdos_477"
+)
 # ============================================================================
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -235,6 +246,11 @@ trap 'rm -f "$AX_FILE"' EXIT
 set +e
 AX_OUTPUT=$(run_lake env lean "$AX_FILE" 2>&1)
 set -e
+# Lean pretty-prints long axiom lists across several lines (continuation lines
+# begin with whitespace). Rejoin them so each theorem's `depends on axioms: [...]`
+# entry is a single line — otherwise the bracket parse below would see no `]` and
+# silently validate NOTHING for exactly the theorems carrying custom axioms.
+AX_OUTPUT=$(echo "$AX_OUTPUT" | awk '{ if (sub(/^[[:space:]]+/, " ")) buf = buf $0; else { if (buf != "") print buf; buf = $0 } } END { if (buf != "") print buf }')
 AX_FAIL=0
 # The full allowlist: the three standard axioms plus any whitelisted names.
 ALLOW_SET=" ${STD_AXIOMS[*]} ${ALLOWED_AXIOMS[*]+${ALLOWED_AXIOMS[*]}} "

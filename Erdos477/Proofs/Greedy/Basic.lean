@@ -1,19 +1,16 @@
 /-
-  Stage D — Greedy tiling criterion L4.1 (proves `greedy_tiling`). INDEPENDENT.
+  Stage Greedy (Layer 4) — `greedy_tiling` — the self-contained combinatorial
+  criterion (MILESTONE; independent of all number theory).
 
-  `B : Set ℤ` is kept ABSTRACT throughout (never specialised to `Bset`), and the
-  difference set is the ABSTRACT `Dabs B = {d | ∃ x ∈ B, ∃ y ∈ B, d = x - y}`
-  occurring in the frozen statement (its symmetry is proved locally here, not
-  imported from Stage A's concrete `dset_neg`).
+  Proves `Erdos477.greedy_tiling_proof`, whose statement is character-exact to
+  the frozen `Erdos477.greedy_tiling` in `Erdos477/Theorems.lean`, following
+  SKETCH.md §7 (L4.1): enumerate `ℤ` via `Denumerable`, build a greedy sequence
+  `Aseq : ℕ → Finset ℤ` with invariants (I1) `D`-separatedness and (I2)
+  coverage of the enumerated integers, and take `A = ⋃ j, Aseq j`.
 
-  Contents (BLUEPRINT Stage D / SKETCH §7):
-    * D1  `Aseq` — the greedy chain of finite sets, built by `Nat.rec` over an
-      enumeration of `ℤ` (`Denumerable ℤ`), one step per integer.
-    * D2  the invariants (I1) `Sep` (separation w.r.t. `Dabs B`) and (I2)
-      coverage of the first `j` enumerated integers.
-    * D3  the monotone chain `i ≤ j → Aseq i ⊆ Aseq j`.
-    * D4  `greedy_tiling_proof` — existence AND uniqueness of the `(a,b)`
-      decomposition for `A := ⋃ j, ↑(Aseq j)`.
+  Everything here is generic in an abstract `B : Set ℤ`; the difference set is
+  the abstract `{d | ∃ x ∈ B, ∃ y ∈ B, d = x - y}` (its symmetry is proved by
+  swapping witnesses — `Dset` and `Dset_neg_mem` are never used).
 -/
 import Erdos477.Defs
 
@@ -21,168 +18,215 @@ namespace Erdos477
 
 namespace Greedy
 
-/-- The abstract difference set `B − B` appearing in the frozen statement of
-`greedy_tiling`. -/
-def Dabs (B : Set ℤ) : Set ℤ := {d : ℤ | ∃ x ∈ B, ∃ y ∈ B, d = x - y}
+open scoped Classical
 
-variable {B : Set ℤ}
+/-- The abstract difference set `B − B` of the criterion (generic in `B`;
+deliberately NOT `Dset`). -/
+def D (B : Set ℤ) : Set ℤ := {d : ℤ | ∃ x ∈ B, ∃ y ∈ B, d = x - y}
 
-/-- **L0.2, abstract form.** `B − B` is symmetric — proved by swapping the two
-witnesses (no sign manipulation on powers). -/
-theorem neg_mem_Dabs {d : ℤ} (h : d ∈ Dabs B) : -d ∈ Dabs B := by
-  obtain ⟨x, hx, y, hy, rfl⟩ := h
+/-- Abstract analogue of L0.2: the difference set is symmetric — swap the
+witnesses `(x, y) ↦ (y, x)`. -/
+theorem D_neg_mem {B : Set ℤ} {d : ℤ} (hd : d ∈ D B) : -d ∈ D B := by
+  obtain ⟨x, hx, y, hy, rfl⟩ := hd
   exact ⟨y, hy, x, hx, by ring⟩
 
-/-- **L0.1, abstract form.** `0 ∈ B − B` as soon as `B` is nonempty. -/
-theorem zero_mem_Dabs {b : ℤ} (hb : b ∈ B) : (0 : ℤ) ∈ Dabs B :=
-  ⟨b, hb, b, hb, by ring⟩
+/-- Invariant `(I1)`: a finite set is `D`-separated. -/
+def Separated (B : Set ℤ) (A : Finset ℤ) : Prop :=
+  ∀ a ∈ A, ∀ a' ∈ A, a ≠ a' → a - a' ∉ D B
 
-/-- The greedy hypothesis `(H)` of `greedy_tiling`, phrased with `Dabs`
-(definitionally the set-builder used in the frozen statement). -/
-def Hyp (B : Set ℤ) : Prop :=
-  ∀ C : Finset ℤ, (∀ c ∈ C, c ∉ B) → ∃ b ∈ B, ∀ c ∈ C, c - b ∉ Dabs B
-
-/-- Invariant **(I1)**: distinct elements of `S` differ by an element outside
-`B − B`; equivalently the translates `a + B`, `a ∈ S`, are pairwise disjoint. -/
-def Sep (B : Set ℤ) (S : Finset ℤ) : Prop :=
-  ∀ a ∈ S, ∀ a' ∈ S, a ≠ a' → a - a' ∉ Dabs B
-
-theorem sep_empty : Sep B ∅ := by
-  intro a ha
-  exact absurd ha (Finset.notMem_empty a)
-
-/-- `B` is nonempty: apply `(H)` to the empty `C`. -/
-theorem nonempty_of_Hyp (H : Hyp B) : ∃ b, b ∈ B := by
-  obtain ⟨b, hb, -⟩ := H ∅ (by simp)
-  exact ⟨b, hb⟩
-
-/-- **D1, one greedy step.** Any finite `S` extends to a finite `S'` that covers
-`n` (i.e. `n ∈ S' + B`) and stays separated whenever `S` was. -/
-theorem extend_exists (H : Hyp B) (S : Finset ℤ) (n : ℤ) :
-    ∃ S' : Finset ℤ, S ⊆ S' ∧ (∃ a ∈ S', ∃ b ∈ B, a + b = n) ∧ (Sep B S → Sep B S') := by
-  by_cases hcov : ∃ a ∈ S, ∃ b ∈ B, a + b = n
-  · exact ⟨S, Finset.Subset.refl S, hcov, fun h => h⟩
-  · push Not at hcov
-    -- Case 2 of the sketch: `C = {n - a : a ∈ S}` misses `B` entirely.
-    have hCB : ∀ c ∈ S.image (fun a => n - a), c ∉ B := by
-      intro c hc hcB
-      obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hc
-      exact hcov a ha (n - a) hcB (by ring)
-    obtain ⟨b, hb, hbP⟩ := H (S.image (fun a => n - a)) hCB
-    refine ⟨insert (n - b) S, Finset.subset_insert _ _,
-      ⟨n - b, Finset.mem_insert_self _ _, b, hb, by ring⟩, ?_⟩
-    intro hS a ha a' ha' hne
-    -- separation of the new point `n - b` from every old point
-    have key : ∀ x ∈ S, (n - b) - x ∉ Dabs B := by
-      intro x hx
-      have hmem : n - x ∈ S.image (fun a => n - a) :=
-        Finset.mem_image.mpr ⟨x, hx, rfl⟩
-      have := hbP (n - x) hmem
-      intro hcon
-      exact this (by rw [show n - x - b = n - b - x by ring]; exact hcon)
-    rcases Finset.mem_insert.mp ha with rfl | ha
-    · rcases Finset.mem_insert.mp ha' with rfl | ha'
-      · exact absurd rfl hne
-      · exact key a' ha'
-    · rcases Finset.mem_insert.mp ha' with rfl | ha'
-      · intro hcon
-        refine key a ha ?_
-        have := neg_mem_Dabs hcon
-        rwa [show -(a - (n - b)) = n - b - a by ring] at this
-      · exact hS a ha a' ha' hne
-
-/-- The chosen greedy extension. -/
-noncomputable def stepF (H : Hyp B) (S : Finset ℤ) (n : ℤ) : Finset ℤ :=
-  (extend_exists H S n).choose
-
-theorem subset_stepF (H : Hyp B) (S : Finset ℤ) (n : ℤ) : S ⊆ stepF H S n :=
-  (extend_exists H S n).choose_spec.1
-
-theorem cover_stepF (H : Hyp B) (S : Finset ℤ) (n : ℤ) :
-    ∃ a ∈ stepF H S n, ∃ b ∈ B, a + b = n :=
-  (extend_exists H S n).choose_spec.2.1
-
-theorem sep_stepF (H : Hyp B) {S : Finset ℤ} (n : ℤ) (hS : Sep B S) :
-    Sep B (stepF H S n) :=
-  (extend_exists H S n).choose_spec.2.2 hS
-
-/-- An enumeration of `ℤ` (`Denumerable ℤ`); surjective by construction. -/
-def enum (j : ℕ) : ℤ := (Denumerable.eqv ℤ).symm j
+/-- The enumeration `n₀, n₁, n₂, …` of `ℤ` (via `Denumerable ℤ`). -/
+def enum : ℕ → ℤ := (Denumerable.eqv ℤ).symm
 
 theorem enum_surjective : Function.Surjective enum :=
   (Denumerable.eqv ℤ).symm.surjective
 
-/-- **D1 — the greedy chain.** `Aseq 0 = ∅`; step `j` handles the integer
-`enum j`. -/
-noncomputable def Aseq (H : Hyp B) : ℕ → Finset ℤ
+section
+
+variable {B : Set ℤ}
+variable (H : ∀ C : Finset ℤ, (∀ c ∈ C, c ∉ B) →
+    ∃ b ∈ B, ∀ c ∈ C, c - b ∉ {d : ℤ | ∃ x ∈ B, ∃ y ∈ B, d = x - y})
+
+/-- Case 2 setup: if `n` is not yet covered by `A + B`, then
+`C = (A).image (n − ·)` avoids `B`. -/
+theorem image_subset_compl {A : Finset ℤ} {n : ℤ}
+    (hcase : ¬ ∃ a ∈ A, ∃ b ∈ B, a + b = n) :
+    ∀ c ∈ A.image (fun a => n - a), c ∉ B := by
+  intro c hc hcB
+  rw [Finset.mem_image] at hc
+  obtain ⟨a, ha, rfl⟩ := hc
+  exact hcase ⟨a, ha, n - a, hcB, by ring⟩
+
+include H
+
+/-- `H` applied to `C = ∅` gives `B ≠ ∅`. -/
+theorem B_nonempty : B.Nonempty := by
+  obtain ⟨b, hb, -⟩ := H ∅ (by simp)
+  exact ⟨b, hb⟩
+
+/-- `0 ∈ B − B` (needs `B ≠ ∅`). -/
+theorem zero_mem_D : (0 : ℤ) ∈ D B := by
+  obtain ⟨b, hb⟩ := B_nonempty H
+  exact ⟨b, hb, b, hb, by ring⟩
+
+private theorem exists_good (C : Finset ℤ) :
+    ∃ b : ℤ, (∀ c ∈ C, c ∉ B) → b ∈ B ∧ ∀ c ∈ C, c - b ∉ D B := by
+  by_cases h : ∀ c ∈ C, c ∉ B
+  · obtain ⟨b, hb, hav⟩ := H C h
+    exact ⟨b, fun _ => ⟨hb, hav⟩⟩
+  · exact ⟨0, fun hh => absurd hh h⟩
+
+/-- The good `b ∈ B` chosen (classically) via `H` for a finite `C ⊆ ℤ \ B`
+(junk value otherwise). -/
+noncomputable def pick (C : Finset ℤ) : ℤ := (exists_good H C).choose
+
+theorem pick_spec {C : Finset ℤ} (h : ∀ c ∈ C, c ∉ B) :
+    pick H C ∈ B ∧ ∀ c ∈ C, c - pick H C ∉ D B :=
+  (exists_good H C).choose_spec h
+
+/-- One greedy step: keep `A` if `n ∈ A + B` already (Case 1); otherwise adjoin
+`a_j = n − b_j` for the good `b_j` given by `H` on `C_j = (A).image (n − ·)`
+(Case 2). -/
+noncomputable def step (A : Finset ℤ) (n : ℤ) : Finset ℤ :=
+  if ∃ a ∈ A, ∃ b ∈ B, a + b = n then A
+  else insert (n - pick H (A.image fun a => n - a)) A
+
+theorem subset_step (A : Finset ℤ) (n : ℤ) : A ⊆ step H A n := by
+  unfold step
+  split_ifs
+  · exact Finset.Subset.refl A
+  · exact Finset.subset_insert _ A
+
+/-- After the step, `n` is covered by `(step A n) + B`. -/
+theorem step_covers (A : Finset ℤ) (n : ℤ) :
+    ∃ a ∈ step H A n, ∃ b ∈ B, a + b = n := by
+  unfold step
+  split_ifs with hcase
+  · exact hcase
+  · exact ⟨n - pick H (A.image fun a => n - a), Finset.mem_insert_self _ _,
+      pick H (A.image fun a => n - a),
+      (pick_spec H (image_subset_compl hcase)).1, by ring⟩
+
+/-- The step preserves `D`-separatedness — SKETCH §7, Case 2, invariant (I1):
+`a_j − a = (n_j − a) − b_j ∉ D` from the choice of `b_j`, and `a − a_j ∉ D` by
+symmetry of the difference set. -/
+theorem step_separated {A : Finset ℤ} (hA : Separated B A) (n : ℤ) :
+    Separated B (step H A n) := by
+  unfold step
+  split_ifs with hcase
+  · exact hA
+  · have hav := (pick_spec H (image_subset_compl hcase)).2
+    set b := pick H (A.image fun a => n - a) with hb
+    have key : ∀ a ∈ A, n - b - a ∉ D B := by
+      intro a ha hmem
+      have heq : n - b - a = n - a - b := by ring
+      rw [heq] at hmem
+      exact hav (n - a) (Finset.mem_image_of_mem _ ha) hmem
+    intro x hx y hy hxy
+    rcases Finset.mem_insert.mp hx with rfl | hxA
+    · rcases Finset.mem_insert.mp hy with rfl | hyA
+      · exact absurd rfl hxy
+      · exact key y hyA
+    · rcases Finset.mem_insert.mp hy with rfl | hyA
+      · intro hmem
+        have hneg := D_neg_mem hmem
+        rw [neg_sub] at hneg
+        exact key x hxA hneg
+      · exact hA x hxA y hyA hxy
+
+/-- SKETCH §9.5 item 9: in Case 2 the adjoined element `a_j = n − b_j` is
+genuinely new — `a_j ∈ A` would force `0 = (n − a_j) − b_j ∉ D` by the choice
+of `b_j`, contradicting `0 ∈ B − B` (from `B ≠ ∅`). -/
+theorem step_new_notMem {A : Finset ℤ} {n : ℤ}
+    (hcase : ¬ ∃ a ∈ A, ∃ b ∈ B, a + b = n) :
+    n - pick H (A.image fun a => n - a) ∉ A := by
+  intro hmem
+  have hav := (pick_spec H (image_subset_compl hcase)).2
+  set b := pick H (A.image fun a => n - a) with hb
+  have h0 := hav (n - (n - b)) (Finset.mem_image_of_mem _ hmem)
+  have heq : n - (n - b) - b = 0 := by ring
+  rw [heq] at h0
+  exact h0 (zero_mem_D H)
+
+/-- The greedy sequence of finite approximants `A₀ ⊆ A₁ ⊆ A₂ ⊆ ⋯`; stage
+`j + 1` handles the `j`-th enumerated integer `n_j = enum j`. -/
+noncomputable def Aseq : ℕ → Finset ℤ
   | 0 => ∅
-  | j + 1 => stepF H (Aseq H j) (enum j)
+  | j + 1 => step H (Aseq j) (enum j)
 
-/-- **D2 (I1).** Every `Aseq j` is separated. -/
-theorem Aseq_sep (H : Hyp B) : ∀ j, Sep B (Aseq H j)
-  | 0 => sep_empty
-  | j + 1 => sep_stepF H _ (Aseq_sep H j)
+theorem Aseq_zero : Aseq H 0 = ∅ := rfl
 
-/-- **D3 — the chain is monotone.** -/
-theorem Aseq_mono (H : Hyp B) {i j : ℕ} (hij : i ≤ j) : Aseq H i ⊆ Aseq H j := by
+theorem Aseq_succ (j : ℕ) : Aseq H (j + 1) = step H (Aseq H j) (enum j) := rfl
+
+theorem Aseq_subset_succ (j : ℕ) : Aseq H j ⊆ Aseq H (j + 1) := by
+  rw [Aseq_succ]
+  exact subset_step H _ _
+
+/-- Monotonicity of the greedy sequence (the family is a chain). -/
+theorem Aseq_subset_of_le {i j : ℕ} (hij : i ≤ j) : Aseq H i ⊆ Aseq H j := by
+  induction hij with
+  | refl => exact Finset.Subset.refl _
+  | step _ ih => exact Finset.Subset.trans ih (Aseq_subset_succ H _)
+
+/-- Invariant `(I1)` at every stage. -/
+theorem Aseq_separated (j : ℕ) : Separated B (Aseq H j) := by
   induction j with
-  | zero => simp_all
+  | zero =>
+    rw [Aseq_zero]
+    intro a ha
+    exact absurd ha (Finset.notMem_empty a)
   | succ j ih =>
-      rcases Nat.lt_succ_iff_lt_or_eq.mp (Nat.lt_succ_of_le hij) with h | h
-      · exact fun x hx => subset_stepF H _ _ (ih (Nat.lt_succ_iff.mp h) hx)
-      · subst h; exact Finset.Subset.refl _
+    rw [Aseq_succ]
+    exact step_separated H ih _
 
-/-- **D2 (I2).** `Aseq j` covers the first `j` enumerated integers. -/
-theorem Aseq_cover (H : Hyp B) : ∀ j : ℕ, ∀ i < j, ∃ a ∈ Aseq H j, ∃ b ∈ B, a + b = enum i := by
-  intro j
-  induction j with
-  | zero => intro i hi; exact absurd hi (Nat.not_lt_zero i)
-  | succ j ih =>
-      intro i hi
-      rcases Nat.lt_succ_iff_lt_or_eq.mp hi with h | h
-      · obtain ⟨a, ha, b, hb, hab⟩ := ih i h
-        exact ⟨a, subset_stepF H _ _ ha, b, hb, hab⟩
-      · subst h; exact cover_stepF H _ _
+/-- Invariant `(I2)`: after stage `i + 1`, the `i`-th enumerated integer is
+covered. -/
+theorem Aseq_covers (i : ℕ) :
+    ∃ a ∈ Aseq H (i + 1), ∃ b ∈ B, a + b = enum i := by
+  rw [Aseq_succ]
+  exact step_covers H _ _
 
-/-- **D4 — the tiling complement.** -/
-def Aset (H : Hyp B) : Set ℤ := ⋃ j : ℕ, ((Aseq H j : Finset ℤ) : Set ℤ)
-
-theorem mem_Aset {H : Hyp B} {a : ℤ} : a ∈ Aset H ↔ ∃ j, a ∈ Aseq H j := by
-  simp [Aset]
+end
 
 end Greedy
 
-open Greedy in
-/-- **L4.1 (SKETCH §7, paper's Lemma 5.1) — the greedy tiling criterion.**
-If every finite `C ⊆ ℤ∖B` admits `b ∈ B` with `(C − b) ∩ (B − B) = ∅`, then `B`
-has a tiling complement `A`: every integer is *uniquely* `a + b` with `a ∈ A`,
-`b ∈ B`. -/
+/-- **L4.1 / paper's Lemma 5.1 — the greedy tiling criterion** (statement
+character-exact to the frozen `Erdos477.greedy_tiling`): an abstract `B ⊆ ℤ`
+satisfying the finite-avoidance hypothesis `H` has a tiling complement
+`A = ⋃ j, Aseq j`, with the FULL `∃!` (existence and uniqueness of the pair). -/
 theorem greedy_tiling_proof (B : Set ℤ)
     (H : ∀ C : Finset ℤ, (∀ c ∈ C, c ∉ B) →
          ∃ b ∈ B, ∀ c ∈ C, c - b ∉ {d : ℤ | ∃ x ∈ B, ∃ y ∈ B, d = x - y}) :
     ∃ A : Set ℤ, ∀ n : ℤ, ∃! ab : ℤ × ℤ, ab.1 ∈ A ∧ ab.2 ∈ B ∧ ab.1 + ab.2 = n := by
-  have H' : Hyp B := H
-  refine ⟨Aset H', fun n => ?_⟩
-  -- existence: `n` is enumerated, hence covered at the next step
-  obtain ⟨i, hi⟩ := enum_surjective n
-  obtain ⟨a, ha, b, hb, hab⟩ := Aseq_cover H' (i + 1) i (Nat.lt_succ_self i)
-  refine ⟨(a, b), ⟨mem_Aset.mpr ⟨i + 1, ha⟩, hb, by rw [hab, hi]⟩, ?_⟩
-  -- uniqueness: two decompositions with distinct `a`'s would put `a - a'` in `B − B`
+  refine ⟨⋃ j, (Greedy.Aseq H j : Set ℤ), fun n => ?_⟩
+  -- Existence: `n = enum j` is covered at stage `j + 1` by (I2).
+  obtain ⟨j, hj⟩ := Greedy.enum_surjective n
+  obtain ⟨a, haj, b, hbB, hab⟩ := Greedy.Aseq_covers H j
+  rw [hj] at hab
+  refine ⟨(a, b), ⟨Set.mem_iUnion.mpr ⟨j + 1, Finset.mem_coe.mpr haj⟩, hbB, hab⟩, ?_⟩
+  -- Uniqueness: both first coordinates live in a common stage of the chain;
+  -- `D`-separatedness (I1) forces them equal, then cancel to equate the second.
   rintro ⟨a', b'⟩ ⟨ha', hb', hab'⟩
-  simp only at ha' hb' hab' ⊢
-  obtain ⟨j', hj'⟩ := mem_Aset.mp ha'
-  have hmemA : a ∈ Aseq H' (max (i + 1) j') := Aseq_mono H' (le_max_left _ _) ha
-  have hmemA' : a' ∈ Aseq H' (max (i + 1) j') := Aseq_mono H' (le_max_right _ _) hj'
-  have haa : a' = a := by
+  have ha'm : a' ∈ ⋃ i, (Greedy.Aseq H i : Set ℤ) := ha'
+  have hb'B : b' ∈ B := hb'
+  have hab'' : a' + b' = n := hab'
+  obtain ⟨j', ha'j⟩ := Set.mem_iUnion.mp ha'm
+  have haU : a ∈ Greedy.Aseq H (max (j + 1) j') :=
+    Greedy.Aseq_subset_of_le H (le_max_left _ _) haj
+  have ha'U : a' ∈ Greedy.Aseq H (max (j + 1) j') :=
+    Greedy.Aseq_subset_of_le H (le_max_right _ _) (Finset.mem_coe.mp ha'j)
+  have haa' : a' = a := by
     by_contra hne
-    refine Aseq_sep H' _ a' hmemA' a hmemA hne ?_
-    refine ⟨b, hb, b', hb', ?_⟩
-    have : a + b = a' + b' := by rw [hab, hi, hab']
-    linarith
-  subst haa
-  have : b' = b := by
-    have : a' + b = a' + b' := by rw [hab, hi, hab']
-    linarith
-  simp [this]
+    have hD : a' - a ∈ Greedy.D B := ⟨b, hbB, b', hb'B, by omega⟩
+    exact Greedy.Aseq_separated H (max (j + 1) j') a' ha'U a haU hne hD
+  have hbb' : b' = b := by omega
+  rw [haa', hbb']
+
+/-- Guardrail (Cheat watch, Stage Greedy): instantiating `B = Set.univ`, the
+criterion's hypothesis holds and yields the (degenerate) tiling. -/
+example : ∃ A : Set ℤ, ∀ n : ℤ, ∃! ab : ℤ × ℤ,
+    ab.1 ∈ A ∧ ab.2 ∈ (Set.univ : Set ℤ) ∧ ab.1 + ab.2 = n :=
+  greedy_tiling_proof Set.univ
+    (fun _ hC => ⟨0, Set.mem_univ 0,
+      fun c hc => absurd (Set.mem_univ c) (hC c hc)⟩)
 
 end Erdos477

@@ -1,0 +1,15 @@
+# iter001-worker4  @ 2026-07-20T20:28:17Z
+# cwd: /Users/siyua/dev/erdos477-formalization
+# output_format: text
+
+**Task complete.** As Worker Agent 4, I delivered the Heath-Brown specialization bridge in `Erdos477/Proofs/BadShift/Basic.lean`, exactly as assigned in TASKS.md Iteration 1 — proving the sketch's conditional diagonal-13 "AXIOM HB" as a lemma from the frozen general axiom, per the "axiomatize the general, derive the specific" mandate.
+
+What was produced (all sorry-free, module builds cleanly with zero warnings):
+
+- **`diag13Form`** — the diagonal form `X₀¹³ + X₁¹³ + X₂¹³` as an `MvPolynomial (Fin 3) ℤ`, with **`diag13Form_isHomogeneous`** (degree 13, via `(isHomogeneous_X ℤ i).pow 13`) and **`diag13Form_nonsingular`** (over ℂ, each partial is `13·Xᵢ¹²` by the helper `diag13Form_pderiv`, and `13·xᵢ¹² = 0 → xᵢ = 0`).
+- **`diag13_eval` / `diag13_aeval`** — evaluation and polynomial-substitution identities translating `IsParamOfDegLE` into the `p₁¹³ + p₂¹³ + p₃¹³ = C M` shape.
+- **`hb_diagonal_conditional`** — the bridge lemma with the exact type mandated by TASKS.md: instantiated the frozen axiom at `F := diag13Form`, `k := 13`, `cN := |(M:ℝ)|`; discharged `|M| ≤ |M|·X` from `1 ≤ X`; reduced `⌊13/10⌋ = 1`; and showed `HBSolutionSet diag13Form M 1 X` equals the full box set because the exclusion hypothesis `hexcl` (fed through `diag13_aeval`) makes `IsParamOfDegLE` contradictory, so no solution is excluded from the count.
+
+Axiom hygiene is exactly as required: `#print axioms Erdos477.hb_diagonal_conditional` shows the standard three plus `Erdos477.heath_brown_diagonal_13` only (no Brownawell–Masser axiom); all five support lemmas carry the standard three only. I did not touch `badShift_bound`, `Defs.lean`, `Theorems.lean`, or any other agent's file. PROGRESS.md has my ✅ entry with a concrete handoff: once ParamExclusion delivers `no_linear_param`, a follow-up agent can prove `badShift_bound` by feeding it into `hb_diagonal_conditional` with `M := −c` and running the `Φ t = (uₜ, −vₜ, −t)` injection argument from BLUEPRINT B1.
+
+# exit=0 timed_out=False @ 2026-07-20T20:34:12Z

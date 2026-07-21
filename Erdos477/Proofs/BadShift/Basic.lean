@@ -1,206 +1,149 @@
 /-
-  Stage E — Bad-shift estimate P3.1 (BLUEPRINT Stage E, SKETCH §6). THE HEART.
+  Stage BadShift (Layer 3) — badShift_bound — the O_c(T^(5/6)) estimate (HEART; derives the
+  diagonal-13 count from the general heath_brown_diagonal_13 axiom).
 
-  This file proves the FULL bad-shift estimate
+  ITERATION 1 (agent-iter1-4): the Heath-Brown SPECIALIZATION BRIDGE mandated by
+  USER_NOTES.md ("axiomatize the general, derive the specific") and the SETUP 📝
+  decision — the sketch's conditional diagonal-13 "AXIOM HB" (SKETCH.md §3,
+  "recommended Lean form", modulo the ε-sign step, unnecessary since the frozen
+  axiom takes arbitrary `N ≠ 0`) is PROVED here as `hb_diagonal_conditional`
+  from the frozen general axiom `Erdos477.heath_brown_diagonal_13` (the paper's
+  Theorem 2.2 in full generality).
 
-    `badShift_bound_of_hexcl (c) (hc : c ∉ Bset) (hexcl) :
-        ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T → ((Sset c T).card : ℝ) ≤ K * T ^ (5/6)`
+  `badShift_bound` itself is NOT touched here: it needs `no_linear_param`
+  (Stage ParamExclusion), not yet available. A later iteration combines that
+  exclusion input with `hb_diagonal_conditional` below.
 
-  i.e. the conclusion of the frozen `badShift_bound` VERBATIM, with the
-  degree-≤ 1 exclusion hypothesis `hexcl` of `heath_brown_diagonal_13` taken as
-  an explicit argument of THIS SUPPORT LEMMA ONLY (Stage C proves it; iteration 3
-  wires `badShift_bound_proof c hc := badShift_bound_of_hexcl c hc
-  (no_linear_param_proof c hc)`). The frozen statement itself never gains a
-  hypothesis.
-
-  Structure (BLUEPRINT E1–E4 / SKETCH §6 Steps 0–4):
-    E1  `pairOf`, `Phi`, `Phi_inj`, `Phi_sum`, `pairOf_ne`  — bad shift ↦ solution
-    E2  `coord_bound`                                       — the `T^(13/12)` box
-    E3  the single invocation of `heath_brown_diagonal_13` with `hexcl`
-    E4  injective count + real-exponent bookkeeping, exponent exactly `5/6`.
+  Support declarations go in `namespace Erdos477` (never shadow a frozen name);
+  the frozen statements themselves live untouched in `Erdos477/Theorems.lean`.
 -/
 import Erdos477.Defs
 import Erdos477.Proofs.Elementary.Basic
 import Erdos477.Proofs.Cofactor.Basic
+import Erdos477.Proofs.ParamExclusion.Spine
 
 namespace Erdos477
 
-open scoped BigOperators Classical
+open MvPolynomial
 
-namespace BadShift
+/-! ## The diagonal degree-13 ternary form -/
 
-private theorem odd13 : Odd (13 : ℕ) := ⟨6, by norm_num⟩
+/-- The diagonal ternary form `X₀¹³ + X₁¹³ + X₂¹³ ∈ ℤ[X₀,X₁,X₂]` to which the
+paper applies its Theorem 2.2 (the frozen axiom `heath_brown_diagonal_13`).
+A support definition of Stage BadShift — deliberately NOT in `Defs.lean`. -/
+noncomputable def diag13Form : MvPolynomial (Fin 3) ℤ :=
+  X 0 ^ 13 + X 1 ^ 13 + X 2 ^ 13
 
-/-! ### Membership in the bad-shift set -/
+/-- `diag13Form` is homogeneous of degree 13. -/
+theorem diag13Form_isHomogeneous : diag13Form.IsHomogeneous 13 := by
+  have h : ∀ i : Fin 3, (X i ^ 13 : MvPolynomial (Fin 3) ℤ).IsHomogeneous 13 := fun i => by
+    simpa only [one_mul] using (isHomogeneous_X ℤ i).pow 13
+  exact ((h 0).add (h 1)).add (h 2)
 
-theorem mem_Sset_iff {c T t : ℤ} :
-    t ∈ Sset c T ↔ (-T ≤ t ∧ t ≤ T) ∧ t ^ 13 - c ∈ Dset := by
-  simp [Sset, Finset.mem_filter, Finset.mem_Icc]
+/-- Evaluation of `diag13Form` at an integer triple is the diagonal sum of
+thirteenth powers. -/
+theorem diag13_eval (x : Fin 3 → ℤ) :
+    MvPolynomial.eval x diag13Form = x 0 ^ 13 + x 1 ^ 13 + x 2 ^ 13 := by
+  simp [diag13Form]
 
-/-! ### E1 — from a bad shift to a solution of the diagonal equation -/
+/-- `aeval` analogue of `diag13_eval`, for triples of one-variable integer
+polynomials: substituting `p` into `diag13Form` yields `p₀¹³ + p₁¹³ + p₂¹³`.
+Translates the frozen `IsParamOfDegLE` identity into the shape consumed by the
+exclusion hypothesis of the bridge lemma. -/
+theorem diag13_aeval (p : Fin 3 → Polynomial ℤ) :
+    MvPolynomial.aeval p diag13Form = p 0 ^ 13 + p 1 ^ 13 + p 2 ^ 13 := by
+  simp [diag13Form]
 
-/-- For every `t`, a pair `(u,v)` witnessing `t ^ 13 - c = u ^ 13 - v ^ 13`
-whenever `t ^ 13 - c ∈ Dset` (a junk value otherwise). -/
-theorem pair_exists (c t : ℤ) :
-    ∃ p : ℤ × ℤ, t ^ 13 - c ∈ Dset → t ^ 13 - c = p.1 ^ 13 - p.2 ^ 13 := by
-  by_cases h : t ^ 13 - c ∈ Dset
-  · obtain ⟨u, v, huv⟩ := h
-    exact ⟨(u, v), fun _ => huv⟩
-  · exact ⟨(0, 0), fun h' => absurd h' h⟩
+/-- The partial derivatives of `diag13Form` are `13·Xᵢ¹²`. -/
+theorem diag13Form_pderiv (i : Fin 3) :
+    MvPolynomial.pderiv i diag13Form = 13 * X i ^ 12 := by
+  fin_cases i <;> simp [diag13Form]
 
-/-- The classically chosen witness pair `(u_t, v_t)` of SKETCH §6 Step 1. -/
-noncomputable def pairOf (c t : ℤ) : ℤ × ℤ := (pair_exists c t).choose
+/-- `diag13Form` is nonsingular: over `ℂ` its gradient `(13x₀¹², 13x₁¹², 13x₂¹²)`
+vanishes only at the origin. -/
+theorem diag13Form_nonsingular : IsNonsingularForm diag13Form := by
+  intro x hx
+  funext i
+  have h : (13 : ℂ) * x i ^ 12 = 0 := by
+    have h0 := hx i
+    rw [diag13Form_pderiv] at h0
+    simpa using h0
+  have h12 : x i ^ 12 = 0 := by
+    rcases mul_eq_zero.mp h with h13 | h12
+    · norm_num at h13
+    · exact h12
+  exact pow_eq_zero_iff (by norm_num : (12 : ℕ) ≠ 0) |>.mp h12
 
-theorem pairOf_spec {c t : ℤ} (h : t ^ 13 - c ∈ Dset) :
-    t ^ 13 - c = (pairOf c t).1 ^ 13 - (pairOf c t).2 ^ 13 :=
-  (pair_exists c t).choose_spec h
+/-! ## The bridge lemma: SKETCH §3's "AXIOM HB", proved from the general axiom -/
 
-/-- The crux where `c ∉ Bset` is used: the witnesses are DISTINCT. -/
-theorem pairOf_ne {c t : ℤ} (hc : c ∉ Bset) (h : t ^ 13 - c ∈ Dset) :
-    (pairOf c t).1 ≠ (pairOf c t).2 := by
-  intro heq
-  have hs := pairOf_spec h
-  rw [heq] at hs
-  exact hc ⟨t, by linarith [hs]⟩
+/-- **The Heath-Brown specialization bridge** — the conditional diagonal-13
+count of `SKETCH.md` §3, PROVED from the frozen general axiom
+`heath_brown_diagonal_13` (paper's Theorem 2.2) per `USER_NOTES.md`.
 
-/-- The paper's substitution `Φ t = (u_t, -v_t, -t)`. -/
-noncomputable def Phi (c t : ℤ) : ℤ × ℤ × ℤ :=
-  ((pairOf c t).1, -(pairOf c t).2, -t)
+Given `M ≠ 0` and the exclusion input (every degree-≤1 polynomial solution of
+`p₁¹³ + p₂¹³ + p₃¹³ = M` is constant — supplied downstream by
+`no_linear_param` for `M = −c`), the number of integer solutions of
+`x₀¹³ + x₁¹³ + x₂¹³ = M` in the box `max |xᵢ| ≤ X` is at most `K·X^(10/13)`,
+with `K` depending only on `M`.
 
-theorem Phi_inj (c : ℤ) : Function.Injective (Phi c) := by
-  intro a b hab
-  have h : (-a : ℤ) = -b := congrArg (fun p => p.2.2) hab
-  linarith
+Bridge steps (SKETCH §3, "why this form is a faithful consequence", 1–4):
+instantiate the axiom at `F := diag13Form`, `k := 13`, `cN := |M|`; note
+`⌊13/10⌋ = 1` and `|M| ≤ |M|·X` for `X ≥ 1`; the exclusion hypothesis makes
+`IsParamOfDegLE diag13Form M 1` contradictory, so no solution "lies on" a
+parametrization and `HBSolutionSet` is the FULL box count. -/
+theorem hb_diagonal_conditional (M : ℤ) (hM : M ≠ 0)
+    (hexcl : ∀ p₁ p₂ p₃ : Polynomial ℤ,
+        p₁ ^ 13 + p₂ ^ 13 + p₃ ^ 13 = Polynomial.C M →
+        p₁.natDegree ≤ 1 → p₂.natDegree ≤ 1 → p₃.natDegree ≤ 1 →
+        p₁.natDegree = 0 ∧ p₂.natDegree = 0 ∧ p₃.natDegree = 0) :
+    ∃ K : ℝ, 1 ≤ K ∧ ∀ X : ℝ, 1 ≤ X →
+      (({x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = M ∧ ∀ i, |(x i : ℝ)| ≤ X}).ncard : ℝ)
+        ≤ K * X ^ ((10 : ℝ) / 13) := by
+  obtain ⟨K, hK1, hK⟩ := heath_brown_diagonal_13 diag13Form 13 (by norm_num)
+    diag13Form_isHomogeneous diag13Form_nonsingular |(M : ℝ)|
+  refine ⟨K, hK1, fun X hX => ?_⟩
+  have hbox := hK M X hM hX (le_mul_of_one_le_right (abs_nonneg _) hX)
+  have h1310 : (13 : ℕ) / 10 = 1 := by norm_num
+  rw [h1310] at hbox
+  have h13 : ((13 : ℕ) : ℝ) = 13 := by norm_num
+  rw [h13] at hbox
+  have hset : HBSolutionSet diag13Form M 1 X
+      = {x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = M ∧ ∀ i, |(x i : ℝ)| ≤ X} := by
+    ext x
+    simp only [HBSolutionSet, Set.mem_setOf_eq]
+    constructor
+    · rintro ⟨h1, h2, -⟩
+      exact ⟨h1, h2⟩
+    · rintro ⟨h1, h2⟩
+      refine ⟨h1, h2, ?_⟩
+      rintro ⟨p, ⟨hdeg, hnc, haev⟩, -⟩
+      have hconst := hexcl (p 0) (p 1) (p 2) ((diag13_aeval p).symm.trans haev)
+        (hdeg 0) (hdeg 1) (hdeg 2)
+      refine hnc fun i => ?_
+      fin_cases i
+      · exact hconst.1
+      · exact hconst.2.1
+      · exact hconst.2.2
+  rw [hset] at hbox
+  exact hbox
 
-theorem Phi_sum {c t : ℤ} (h : t ^ 13 - c ∈ Dset) :
-    (Phi c t).1 ^ 13 + (Phi c t).2.1 ^ 13 + (Phi c t).2.2 ^ 13 = -c := by
-  have hs := pairOf_spec h
-  simp only [Phi, Odd.neg_pow odd13]
-  linarith
+/-! ## B1 (conditional): the bad-shift estimate modulo the exclusion input
 
-/-! ### E2 — the coordinate bound `max(|u|,|v|) ≤ C_c · T^(13/12)` -/
+`badShift_bound_of_hexcl` is EXACTLY the frozen `badShift_bound` conclusion,
+with the exclusion statement `hexcl` (= the conclusion of the future
+`no_linear_param c hc`) as an extra hypothesis on this SUPPORT lemma only.
+The frozen `badShift_bound` in `Theorems.lean` stays untouched and un-restated;
+once Stage ParamExclusion delivers `no_linear_param`, it is discharged as
+`fun c hc => badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)`.
 
-/-- `C_c := (2 (1 + |c|))^(1/12) ≥ 1`. -/
-noncomputable def Cc (c : ℤ) : ℝ := (2 * (1 + |(c : ℝ)|)) ^ ((1 : ℝ) / 12)
+Proof per SKETCH §6 (P3.1, Steps 0–4) / BLUEPRINT Stage BadShift B1:
+each `t ∈ Sset c T` gives (choice) a pair `u ≠ v` with `t¹³ − c = u¹³ − v¹³`
+(`u = v` would force `c = t¹³ ∈ Bset`, killed by the live `hc`); the injection
+`Φ t = ![u, −v, −t]` (third coordinate recovers `t`) lands in the diagonal box
+`{x | x₀¹³+x₁¹³+x₂¹³ = −c, max|xᵢ| ≤ X}` with `X := C_c·T^{13/12}`,
+`C_c := (2(1+|c|))^{1/12}` (via `pow13_gap_proof`); `hb_diagonal_conditional`
+counts the box by `K·X^{10/13}`, and `(T^{13/12})^{10/13} = T^{5/6}`. -/
 
-theorem one_le_Cc (c : ℤ) : 1 ≤ Cc c := by
-  have h1 : (1 : ℝ) ≤ 2 * (1 + |(c : ℝ)|) := by
-    have := abs_nonneg ((c : ℝ)); linarith
-  calc (1 : ℝ) = (1 : ℝ) ^ ((1 : ℝ) / 12) := (Real.one_rpow _).symm
-    _ ≤ Cc c := Real.rpow_le_rpow (by norm_num) h1 (by norm_num)
-
-theorem Cc_nonneg (c : ℤ) : 0 ≤ Cc c := le_trans zero_le_one (one_le_Cc c)
-
-theorem Cc_pow12 (c : ℤ) : (Cc c) ^ (12 : ℕ) = 2 * (1 + |(c : ℝ)|) := by
-  have h0 : (0 : ℝ) ≤ 2 * (1 + |(c : ℝ)|) := by
-    have := abs_nonneg ((c : ℝ)); linarith
-  rw [Cc, ← Real.rpow_natCast ((2 * (1 + |(c : ℝ)|)) ^ ((1 : ℝ) / 12)) 12,
-    ← Real.rpow_mul h0]
-  norm_num
-
-/-- The box radius `X := C_c · T^(13/12)`. -/
-noncomputable def Xb (c T : ℤ) : ℝ := Cc c * (T : ℝ) ^ ((13 : ℝ) / 12)
-
-theorem one_le_Xb {c T : ℤ} (hT : 1 ≤ T) : 1 ≤ Xb c T := by
-  have hTr : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
-  have h2 : (1 : ℝ) ≤ (T : ℝ) ^ ((13 : ℝ) / 12) := by
-    calc (1 : ℝ) = (1 : ℝ) ^ ((13 : ℝ) / 12) := (Real.one_rpow _).symm
-      _ ≤ _ := Real.rpow_le_rpow (by norm_num) hTr (by norm_num)
-  have h1 := one_le_Cc c
-  rw [Xb]
-  nlinarith
-
-theorem Xb_nonneg {c T : ℤ} (hT : 1 ≤ T) : 0 ≤ Xb c T :=
-  le_trans zero_le_one (one_le_Xb hT)
-
-theorem T_le_Xb {c T : ℤ} (hT : 1 ≤ T) : (T : ℝ) ≤ Xb c T := by
-  have hTr : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
-  have h1 : (T : ℝ) ≤ (T : ℝ) ^ ((13 : ℝ) / 12) := by
-    calc (T : ℝ) = (T : ℝ) ^ ((1 : ℝ)) := (Real.rpow_one _).symm
-      _ ≤ (T : ℝ) ^ ((13 : ℝ) / 12) :=
-          Real.rpow_le_rpow_of_exponent_le hTr (by norm_num)
-  have h2 : (1 : ℝ) ≤ Cc c := one_le_Cc c
-  have h3 : (0 : ℝ) ≤ (T : ℝ) ^ ((13 : ℝ) / 12) := Real.rpow_nonneg (by linarith) _
-  rw [Xb]
-  nlinarith
-
-theorem Xb_pow12 {c T : ℤ} (hT : 1 ≤ T) :
-    (Xb c T) ^ (12 : ℕ) = 2 * (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ) := by
-  have hTr : (0 : ℝ) ≤ (T : ℝ) := by
-    have : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
-    linarith
-  have h : ((T : ℝ) ^ ((13 : ℝ) / 12)) ^ (12 : ℕ) = (T : ℝ) ^ (13 : ℕ) := by
-    rw [← Real.rpow_natCast ((T : ℝ) ^ ((13 : ℝ) / 12)) 12, ← Real.rpow_mul hTr,
-      ← Real.rpow_natCast ((T : ℝ)) 13]
-    norm_num
-  rw [Xb, mul_pow, Cc_pow12, h]
-
-/-- **E2 (SKETCH §6 Step 2, eq. (4.2)).** Both witness coordinates lie in the box
-of radius `X = C_c · T^(13/12)`. -/
-theorem coord_bound (c : ℤ) (hc : c ∉ Bset) {T t : ℤ} (hT : 1 ≤ T)
-    (ht : t ∈ Sset c T) :
-    |((pairOf c t).1 : ℝ)| ≤ Xb c T ∧ |((pairOf c t).2 : ℝ)| ≤ Xb c T := by
-  obtain ⟨⟨hT1, hT2⟩, hD⟩ := mem_Sset_iff.mp ht
-  set u := (pairOf c t).1 with hu
-  set v := (pairOf c t).2 with hv
-  have hne : u ≠ v := pairOf_ne hc hD
-  have hgap := pow13_gap u v hne
-  -- `|u^13 - v^13| = |t^13 - c|`
-  have hs : ((t : ℝ)) ^ 13 - (c : ℝ) = (u : ℝ) ^ 13 - (v : ℝ) ^ 13 := by
-    exact_mod_cast congrArg (fun z : ℤ => (z : ℝ)) (pairOf_spec hD)
-  -- the size chain
-  have hTr : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
-  have habs : |(t : ℝ)| ≤ (T : ℝ) := by
-    rw [abs_le]; constructor <;> [exact_mod_cast hT1; exact_mod_cast hT2]
-  have hT13 : (1 : ℝ) ≤ (T : ℝ) ^ (13 : ℕ) := one_le_pow₀ hTr
-  have ht13 : |(t : ℝ)| ^ (13 : ℕ) ≤ (T : ℝ) ^ (13 : ℕ) :=
-    pow_le_pow_left₀ (abs_nonneg _) habs 13
-  have hchain : |(t : ℝ) ^ 13 - (c : ℝ)| ≤ (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ) := by
-    have h1 : |(t : ℝ) ^ 13 - (c : ℝ)| ≤ |(t : ℝ) ^ 13| + |(c : ℝ)| := abs_sub _ _
-    have h2 : |(t : ℝ) ^ 13| = |(t : ℝ)| ^ (13 : ℕ) := abs_pow _ _
-    have h3 : |(c : ℝ)| ≤ |(c : ℝ)| * (T : ℝ) ^ (13 : ℕ) := by
-      nlinarith [abs_nonneg ((c : ℝ))]
-    rw [h2] at h1
-    nlinarith
-  -- `(1/2) m^12 ≤ (1+|c|) T^13`
-  set m := max |(u : ℝ)| |(v : ℝ)| with hm
-  have hm0 : 0 ≤ m := le_trans (abs_nonneg _) (le_max_left _ _)
-  have hkey : m ^ (12 : ℕ) ≤ (Xb c T) ^ (12 : ℕ) := by
-    have h4 : (1 / 2 : ℝ) * m ^ 12 ≤ |(t : ℝ) ^ 13 - (c : ℝ)| := by
-      rw [hs]; exact hgap
-    rw [Xb_pow12 hT]
-    nlinarith
-  have hmX : m ≤ Xb c T :=
-    le_of_pow_le_pow_left₀ (by norm_num) (Xb_nonneg hT) hkey
-  exact ⟨le_trans (le_max_left _ _) hmX, le_trans (le_max_right _ _) hmX⟩
-
-/-! ### Finiteness of the counted solution set -/
-
-theorem mem_Icc_ceil {x : ℤ} {X : ℝ} (h : |(x : ℝ)| ≤ X) :
-    x ∈ Set.Icc (-⌈X⌉) ⌈X⌉ := by
-  have h1 : (((|x| : ℤ)) : ℝ) ≤ X := by rw [Int.cast_abs]; exact h
-  have h2 : ((|x| : ℤ) : ℝ) ≤ ((⌈X⌉ : ℤ) : ℝ) := le_trans h1 (Int.le_ceil X)
-  have h3 : (|x| : ℤ) ≤ ⌈X⌉ := by exact_mod_cast h2
-  exact Set.mem_Icc.mpr (abs_le.mp h3)
-
-theorem sol_finite (M : ℤ) (X : ℝ) :
-    ({v : ℤ × ℤ × ℤ | v.1 ^ 13 + v.2.1 ^ 13 + v.2.2 ^ 13 = M ∧
-        |(v.1 : ℝ)| ≤ X ∧ |(v.2.1 : ℝ)| ≤ X ∧ |(v.2.2 : ℝ)| ≤ X}).Finite := by
-  have hfin : (Set.Icc (-⌈X⌉) ⌈X⌉ ×ˢ (Set.Icc (-⌈X⌉) ⌈X⌉ ×ˢ Set.Icc (-⌈X⌉) ⌈X⌉)).Finite :=
-    (Set.finite_Icc _ _).prod ((Set.finite_Icc _ _).prod (Set.finite_Icc _ _))
-  refine Set.Finite.subset hfin ?_
-  rintro ⟨x, y, z⟩ ⟨-, hx, hy, hz⟩
-  exact ⟨mem_Icc_ceil hx, mem_Icc_ceil hy, mem_Icc_ceil hz⟩
-
-end BadShift
-
-open BadShift in
-/-- **Stage E (E1–E4), SKETCH §6 / paper's Proposition 4.1.**
-
-The bad-shift estimate with the exponent exactly `5/6`, taking the degree-≤ 1
-exclusion hypothesis `hexcl` (proved in Stage C as `no_linear_param`) as an
-explicit argument. The conclusion is verbatim that of the frozen
-`badShift_bound`. -/
 theorem badShift_bound_of_hexcl (c : ℤ) (hc : c ∉ Bset)
     (hexcl : ∀ p₁ p₂ p₃ : Polynomial ℤ,
         p₁ ^ 13 + p₂ ^ 13 + p₃ ^ 13 = Polynomial.C (-c) →
@@ -208,59 +151,161 @@ theorem badShift_bound_of_hexcl (c : ℤ) (hc : c ∉ Bset)
         p₁.natDegree = 0 ∧ p₂.natDegree = 0 ∧ p₃.natDegree = 0) :
     ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T →
       ((Sset c T).card : ℝ) ≤ K * (T : ℝ) ^ ((5 : ℝ) / 6) := by
-  -- E3: the single invocation of the assumed certificate, with `hexcl` passed through.
-  have hM : (-c) ≠ 0 := neg_ne_zero.mpr (not_B_ne_zero c hc)
-  obtain ⟨K, hK1, hK⟩ := heath_brown_diagonal_13 (-c) hM hexcl
-  refine ⟨max 1 (K * (Cc c) ^ ((10 : ℝ) / 13)), le_max_left _ _, ?_⟩
+  classical
+  -- Step 0: `M := -c ≠ 0`
+  have hM : (-c : ℤ) ≠ 0 := neg_ne_zero.mpr (ne_zero_of_notMem_Bset hc)
+  -- Steps 3–4 input: the conditional Heath-Brown count at `M = -c`
+  obtain ⟨K, hK1, hK⟩ := hb_diagonal_conditional (-c) hM hexcl
+  -- the constant `C_c = (2(1+|c|))^{1/12} ≥ 1` of SKETCH §6 Step 2
+  set Cc : ℝ := (2 * (1 + |(c : ℝ)|)) ^ ((1 : ℝ) / 12) with hCc_def
+  have hbase1 : (1 : ℝ) ≤ 2 * (1 + |(c : ℝ)|) := by nlinarith [abs_nonneg (c : ℝ)]
+  have hbase0 : (0 : ℝ) ≤ 2 * (1 + |(c : ℝ)|) := by linarith
+  have hCc1 : (1 : ℝ) ≤ Cc := by
+    rw [hCc_def]
+    calc (1 : ℝ) = 1 ^ ((1 : ℝ) / 12) := (Real.one_rpow _).symm
+      _ ≤ (2 * (1 + |(c : ℝ)|)) ^ ((1 : ℝ) / 12) :=
+          Real.rpow_le_rpow zero_le_one hbase1 (by norm_num)
+  have hCc0 : (0 : ℝ) ≤ Cc := zero_le_one.trans hCc1
+  refine ⟨K * Cc ^ ((10 : ℝ) / 13), ?_, ?_⟩
+  · -- `1 ≤ K_c = K · C_c^{10/13}`
+    have h1 : (1 : ℝ) ≤ Cc ^ ((10 : ℝ) / 13) := by
+      calc (1 : ℝ) = 1 ^ ((10 : ℝ) / 13) := (Real.one_rpow _).symm
+        _ ≤ Cc ^ ((10 : ℝ) / 13) := Real.rpow_le_rpow zero_le_one hCc1 (by norm_num)
+    nlinarith
   intro T hT
-  have hTr : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
-  have hX1 : (1 : ℝ) ≤ Xb c T := one_le_Xb hT
-  -- E4a: `Φ` maps `Sset c T` injectively into the counted solution set.
-  have hsub : ↑((Sset c T).image (Phi c)) ⊆
-      {v : ℤ × ℤ × ℤ | v.1 ^ 13 + v.2.1 ^ 13 + v.2.2 ^ 13 = -c ∧
-        |(v.1 : ℝ)| ≤ Xb c T ∧ |(v.2.1 : ℝ)| ≤ Xb c T ∧ |(v.2.2 : ℝ)| ≤ Xb c T} := by
-    intro w hw
-    simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at hw
-    obtain ⟨t, ht, rfl⟩ := hw
-    obtain ⟨⟨hT1, hT2⟩, hD⟩ := mem_Sset_iff.mp ht
-    obtain ⟨hu, hv⟩ := coord_bound c hc hT ht
-    refine ⟨Phi_sum hD, hu, ?_, ?_⟩
-    · show |((-(pairOf c t).2 : ℤ) : ℝ)| ≤ Xb c T
-      rw [Int.cast_neg, abs_neg]; exact hv
-    · show |((-t : ℤ) : ℝ)| ≤ Xb c T
-      rw [Int.cast_neg, abs_neg]
-      have habs : |(t : ℝ)| ≤ (T : ℝ) := by
-        rw [abs_le]; constructor <;> [exact_mod_cast hT1; exact_mod_cast hT2]
-      exact le_trans habs (T_le_Xb hT)
-  have hcard : ((Sset c T).image (Phi c)).card = (Sset c T).card :=
-    Finset.card_image_of_injective _ (Phi_inj c)
-  have hle : ((Sset c T).card : ℝ) ≤
-      (({v : ℤ × ℤ × ℤ | v.1 ^ 13 + v.2.1 ^ 13 + v.2.2 ^ 13 = -c ∧
-          |(v.1 : ℝ)| ≤ Xb c T ∧ |(v.2.1 : ℝ)| ≤ Xb c T ∧
-          |(v.2.2 : ℝ)| ≤ Xb c T}).ncard : ℝ) := by
-    have h := Set.ncard_le_ncard hsub (sol_finite (-c) (Xb c T))
-    rw [Set.ncard_coe_finset, hcard] at h
-    exact_mod_cast h
-  have hHB := hK (Xb c T) hX1
-  -- E4b: real-exponent bookkeeping — `(T^(13/12))^(10/13) = T^(5/6)`.
-  have hpow : (Xb c T) ^ ((10 : ℝ) / 13)
-      = (Cc c) ^ ((10 : ℝ) / 13) * (T : ℝ) ^ ((5 : ℝ) / 6) := by
-    have h1 : (Xb c T) ^ ((10 : ℝ) / 13)
-        = (Cc c) ^ ((10 : ℝ) / 13) * ((T : ℝ) ^ ((13 : ℝ) / 12)) ^ ((10 : ℝ) / 13) := by
-      rw [Xb, Real.mul_rpow (Cc_nonneg c) (Real.rpow_nonneg (by linarith) _)]
-    have h2 : ((T : ℝ) ^ ((13 : ℝ) / 12)) ^ ((10 : ℝ) / 13)
-        = (T : ℝ) ^ ((5 : ℝ) / 6) := by
-      rw [← Real.rpow_mul (by linarith : (0:ℝ) ≤ (T : ℝ))]
-      norm_num
-    rw [h1, h2]
-  have hT56 : (0 : ℝ) ≤ (T : ℝ) ^ ((5 : ℝ) / 6) := Real.rpow_nonneg (by linarith) _
-  have hmax : K * (Cc c) ^ ((10 : ℝ) / 13) ≤ max 1 (K * (Cc c) ^ ((10 : ℝ) / 13)) :=
-    le_max_right _ _
-  calc ((Sset c T).card : ℝ) ≤ _ := hle
-    _ ≤ K * (Xb c T) ^ ((10 : ℝ) / 13) := hHB
-    _ = (K * (Cc c) ^ ((10 : ℝ) / 13)) * (T : ℝ) ^ ((5 : ℝ) / 6) := by
-        rw [hpow]; ring
-    _ ≤ max 1 (K * (Cc c) ^ ((10 : ℝ) / 13)) * (T : ℝ) ^ ((5 : ℝ) / 6) :=
-        mul_le_mul_of_nonneg_right hmax hT56
+  have hT1 : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+  have hT0 : (0 : ℝ) ≤ (T : ℝ) := zero_le_one.trans hT1
+  -- Step 2's box radius `X := C_c · T^{13/12}`
+  set X : ℝ := Cc * (T : ℝ) ^ ((13 : ℝ) / 12) with hX_def
+  have hTX : (T : ℝ) ≤ X := by
+    rw [hX_def]
+    calc (T : ℝ) = (T : ℝ) ^ (1 : ℝ) := (Real.rpow_one _).symm
+      _ ≤ (T : ℝ) ^ ((13 : ℝ) / 12) :=
+          Real.rpow_le_rpow_of_exponent_le hT1 (by norm_num)
+      _ ≤ Cc * (T : ℝ) ^ ((13 : ℝ) / 12) :=
+          le_mul_of_one_le_left (Real.rpow_nonneg hT0 _) hCc1
+  have hX1 : (1 : ℝ) ≤ X := hT1.trans hTX
+  -- Steps 1–2: each bad shift yields a boxed solution of the diagonal equation,
+  -- with the third coordinate remembering the shift
+  have key : ∀ t : ℤ, ∃ x : Fin 3 → ℤ, t ∈ Sset c T →
+      (MvPolynomial.eval x diag13Form = -c ∧ ∀ i, |(x i : ℝ)| ≤ X) ∧ x 2 = -t := by
+    intro t
+    by_cases ht : t ∈ Sset c T
+    swap
+    · exact ⟨0, fun h => absurd h ht⟩
+    have ht' := ht
+    simp only [Sset, Finset.mem_filter, Finset.mem_Icc] at ht'
+    obtain ⟨⟨htlo, hthi⟩, u, v, huv⟩ := ht'
+    -- Step 1 claim: `u ≠ v` (else `c = t¹³ ∈ Bset`, contradicting `hc`)
+    have hne : u ≠ v := by
+      rintro rfl
+      exact hc ⟨t, by linarith⟩
+    -- Step 2: the size bound `max(|u|,|v|) ≤ X` from the gap bound
+    have habs_t : |(t : ℝ)| ≤ (T : ℝ) := by
+      rw [abs_le]
+      exact ⟨by exact_mod_cast htlo, by exact_mod_cast hthi⟩
+    have hgap := pow13_gap_proof u v hne
+    have hcast : (u : ℝ) ^ 13 - (v : ℝ) ^ 13 = (t : ℝ) ^ 13 - (c : ℝ) := by
+      have h := congrArg (fun z : ℤ => (z : ℝ)) huv
+      push_cast at h
+      linarith
+    have hTpow1 : (1 : ℝ) ≤ (T : ℝ) ^ (13 : ℕ) := one_le_pow₀ hT1
+    have habs13 : |(t : ℝ) ^ 13| ≤ (T : ℝ) ^ (13 : ℕ) := by
+      rw [abs_pow]
+      gcongr
+    have hrhs : |(u : ℝ) ^ 13 - (v : ℝ) ^ 13| ≤ (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ) := by
+      rw [hcast]
+      calc |(t : ℝ) ^ 13 - (c : ℝ)| ≤ |(t : ℝ) ^ 13| + |(c : ℝ)| := abs_sub _ _
+        _ ≤ (T : ℝ) ^ (13 : ℕ) + |(c : ℝ)| * (T : ℝ) ^ (13 : ℕ) := by
+            have := le_mul_of_one_le_right (abs_nonneg (c : ℝ)) hTpow1
+            linarith
+        _ = (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ) := by ring
+    have hmax0 : (0 : ℝ) ≤ max |(u : ℝ)| |(v : ℝ)| :=
+      (abs_nonneg _).trans (le_max_left _ _)
+    have hmax12 : max |(u : ℝ)| |(v : ℝ)| ^ 12
+        ≤ 2 * (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ) := by
+      nlinarith [hgap, hrhs]
+    have hmaxX : max |(u : ℝ)| |(v : ℝ)| ≤ X := by
+      have hid : max |(u : ℝ)| |(v : ℝ)|
+          = (max |(u : ℝ)| |(v : ℝ)| ^ (12 : ℕ)) ^ ((1 : ℝ) / 12) := by
+        rw [← Real.rpow_natCast (max |(u : ℝ)| |(v : ℝ)|) 12, ← Real.rpow_mul hmax0]
+        norm_num
+      rw [hid, hX_def]
+      calc (max |(u : ℝ)| |(v : ℝ)| ^ (12 : ℕ)) ^ ((1 : ℝ) / 12)
+          ≤ (2 * (1 + |(c : ℝ)|) * (T : ℝ) ^ (13 : ℕ)) ^ ((1 : ℝ) / 12) :=
+            Real.rpow_le_rpow (pow_nonneg hmax0 _) hmax12 (by norm_num)
+        _ = Cc * ((T : ℝ) ^ (13 : ℕ)) ^ ((1 : ℝ) / 12) := by
+            rw [Real.mul_rpow hbase0 (pow_nonneg hT0 _)]
+        _ = Cc * (T : ℝ) ^ ((13 : ℝ) / 12) := by
+            rw [← Real.rpow_natCast (T : ℝ) 13, ← Real.rpow_mul hT0]
+            norm_num
+    -- assemble the boxed solution `Φ t = ![u, -v, -t]`
+    refine ⟨![u, -v, -t], fun _ => ⟨⟨?_, ?_⟩, ?_⟩⟩
+    · -- evaluation: `u¹³ + (−v)¹³ + (−t)¹³ = −c` (odd exponent)
+      rw [diag13_eval]
+      simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+        Matrix.cons_val_two, Matrix.tail_cons]
+      have hodd : Odd 13 := by decide
+      rw [hodd.neg_pow v, hodd.neg_pow t]
+      linarith
+    · -- the coordinate bounds
+      intro i
+      fin_cases i
+      · simpa using (le_max_left |(u : ℝ)| |(v : ℝ)|).trans hmaxX
+      · simpa using (le_max_right |(u : ℝ)| |(v : ℝ)|).trans hmaxX
+      · simpa using habs_t.trans hTX
+    · rfl
+  choose Φ hΦ using key
+  -- Step 1 injectivity: the third coordinate recovers `t`
+  have hinj : Set.InjOn Φ ↑(Sset c T) := by
+    intro t ht t' ht' hEq
+    have h2 : Φ t 2 = -t := (hΦ t (Finset.mem_coe.mp ht)).2
+    have h2' : Φ t' 2 = -t' := (hΦ t' (Finset.mem_coe.mp ht')).2
+    have : -t = -t' := by rw [← h2, ← h2', hEq]
+    omega
+  have himg : Φ '' ↑(Sset c T) ⊆
+      {x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = -c ∧ ∀ i, |(x i : ℝ)| ≤ X} := by
+    rintro x ⟨t, ht, rfl⟩
+    exact (hΦ t (Finset.mem_coe.mp ht)).1
+  -- the box is finite (inside a product of integer intervals)
+  have hBoxFin :
+      ({x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = -c ∧ ∀ i, |(x i : ℝ)| ≤ X}).Finite := by
+    have hsub : {x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = -c ∧ ∀ i, |(x i : ℝ)| ≤ X}
+        ⊆ Set.pi Set.univ fun _ : Fin 3 => (↑(Finset.Icc (-⌈X⌉) ⌈X⌉) : Set ℤ) := by
+      rintro x ⟨-, hx⟩ i -
+      simp only [Finset.coe_Icc, Set.mem_Icc]
+      have h1 : ((x i : ℤ) : ℝ) ≤ ((⌈X⌉ : ℤ) : ℝ) :=
+        (le_abs_self _).trans ((hx i).trans (Int.le_ceil X))
+      have h2 : ((-⌈X⌉ : ℤ) : ℝ) ≤ ((x i : ℤ) : ℝ) := by
+        push_cast
+        have hna := neg_abs_le ((x i : ℤ) : ℝ)
+        have hxi := hx i
+        have hce := Int.le_ceil X
+        linarith
+      exact ⟨by exact_mod_cast h2, by exact_mod_cast h1⟩
+    exact (Set.Finite.pi fun _ => (Finset.Icc _ _).finite_toSet).subset hsub
+  -- Step 4: count through the injection, then the exponent identity
+  calc ((Sset c T).card : ℝ)
+      = (((Sset c T : Finset ℤ) : Set ℤ).ncard : ℝ) := by rw [Set.ncard_coe_finset]
+    _ = ((Φ '' ↑(Sset c T)).ncard : ℝ) := by rw [hinj.ncard_image]
+    _ ≤ (({x : Fin 3 → ℤ | MvPolynomial.eval x diag13Form = -c ∧
+          ∀ i, |(x i : ℝ)| ≤ X}).ncard : ℝ) := by
+        exact_mod_cast Set.ncard_le_ncard himg hBoxFin
+    _ ≤ K * X ^ ((10 : ℝ) / 13) := hK X hX1
+    _ = K * Cc ^ ((10 : ℝ) / 13) * (T : ℝ) ^ ((5 : ℝ) / 6) := by
+        rw [hX_def, Real.mul_rpow hCc0 (Real.rpow_nonneg hT0 _), ← Real.rpow_mul hT0]
+        rw [show (13 : ℝ) / 12 * (10 / 13) = 5 / 6 by norm_num]
+        ring
+
+/-- **P3.1 — the bad-shift estimate** (statement CHARACTER-EXACT to the frozen
+`badShift_bound` of `Erdos477/Theorems.lean`): the one-line discharge of the
+conditional `badShift_bound_of_hexcl` above by the Route-A exclusion input
+`Erdos477.no_linear_param_proof` (Stage ParamExclusion spine). Carries BOTH
+permitted axioms: `heath_brown_diagonal_13` through the Heath-Brown count and
+`brownawell_masser_P1_four_term` through the exclusion. -/
+theorem badShift_bound_proof (c : ℤ) (hc : c ∉ Bset) :
+    ∃ K : ℝ, 1 ≤ K ∧ ∀ T : ℤ, 1 ≤ T →
+      ((Sset c T).card : ℝ) ≤ K * (T : ℝ) ^ ((5 : ℝ) / 6) :=
+  badShift_bound_of_hexcl c hc (no_linear_param_proof c hc)
 
 end Erdos477

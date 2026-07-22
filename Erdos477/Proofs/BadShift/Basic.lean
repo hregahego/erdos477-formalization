@@ -1,6 +1,14 @@
 /-
-  Stage BadShift (Layer 3) — badShift_bound — the O_c(T^(5/6)) estimate (HEART; derives the
-  diagonal-13 count from the general heath_brown_diagonal_13 axiom).
+  Stage BadShift (Layer 3) — the bad-shift set `Sset`, and badShift_bound — the
+  O_c(T^(5/6)) estimate (HEART; derives the diagonal-13 count from the general
+  heath_brown_diagonal_13 axiom).
+
+  Defines `Sset` (binding modeling decision, from `BLUEPRINT.md` Part −1 §2 /
+  `USER_NOTES.md`): the bad-shift set as a `Finset` (`.card` available),
+  realised as a `filter` over the TWO-SIDED interval `Finset.Icc (-T) T` (the
+  `2T+1` count is load-bearing). The predicate `t ^ 13 - c ∈ Dset` is
+  classical/noncomputable. `Sset` is not needed to STATE the frozen headline
+  `erdos_477`, so it does not live in the frozen `Erdos477/Defs.lean`.
 
   ITERATION 1 (agent-iter1-4): the Heath-Brown SPECIALIZATION BRIDGE mandated by
   USER_NOTES.md ("axiomatize the general, derive the specific") and the SETUP 📝
@@ -25,6 +33,16 @@ import Erdos477.Proofs.ParamExclusion.Spine
 namespace Erdos477
 
 open MvPolynomial
+
+/-! ## The bad-shift set -/
+
+open scoped Classical in
+/-- **D4 — `Sset`.** The bad-shift set `S_c(T) = { t : |t| ≤ T ∧ t ^ 13 − c ∈ D }`,
+as a `Finset` obtained by filtering the two-sided interval `Finset.Icc (-T) T`
+(hence `2T + 1` candidate shifts). The membership predicate is not decidable
+constructively — classical, hence `noncomputable`. -/
+noncomputable def Sset (c T : ℤ) : Finset ℤ :=
+  (Finset.Icc (-T) T).filter (fun t => t ^ 13 - c ∈ Dset)
 
 /-! ## The diagonal degree-13 ternary form -/
 

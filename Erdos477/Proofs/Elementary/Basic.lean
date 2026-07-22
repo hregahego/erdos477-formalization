@@ -1,5 +1,19 @@
 /-
-  Stage Elementary (Layer 0) — L0.1–L0.6 groundwork.
+  Stage Elementary (Layer 0) — the objects `Bset` / `Dset`, and the L0.1–L0.6
+  groundwork about them.
+
+  Defines (the two set-level objects of the development; their binding modeling
+  decisions, from `BLUEPRINT.md` Part −1 §2 / `USER_NOTES.md`, are quoted
+  verbatim on the declarations below):
+    * `Bset` — thirteenth powers as a `Set ℤ` carved by an existential, image
+      form `b = m ^ 13`. Infinite; no positivity, no `b ≠ 0`. Exponent `13 : ℕ`.
+    * `Dset` — the difference set encoded DIRECTLY as `u ^ 13 - v ^ 13`, NOT as
+      the Minkowski difference `Bset - Bset`. Symmetry is a lemma
+      (`Dset_neg_mem_proof` below), not baked in; the bridge
+      `Dset_eq_Bset_sub` lives in `Proofs/Assembly`.
+  Neither is needed to STATE the frozen headline `erdos_477`, so neither lives
+  in the frozen `Erdos477/Defs.lean` — that file carries only the two assumed
+  certificates and the definitions their statements quote.
 
   Proves (TASKS.md Iteration 1, Agent 2):
     * `Dset_neg_mem_proof`     — L0.2, CHARACTER-EXACT the frozen `Dset_neg_mem`
@@ -24,6 +38,18 @@
 import Erdos477.Defs
 
 namespace Erdos477
+
+/-! ### The two set-level objects -/
+
+/-- **D1 — `Bset`.** The set of thirteenth powers `{ m ^ 13 : m ∈ ℤ }` — the set
+being tiled. Carved by an existential in image form `b = m ^ 13`; infinite. -/
+def Bset : Set ℤ := {b | ∃ m : ℤ, b = m ^ 13}
+
+/-- **D2 — `Dset`.** The difference set `B − B`, encoded directly as differences
+of two thirteenth powers `u ^ 13 − v ^ 13` (NOT the Minkowski difference). -/
+def Dset : Set ℤ := {d | ∃ u v : ℤ, d = u ^ 13 - v ^ 13}
+
+/-! ### L0.1–L0.6 -/
 
 /-- **L0.2 — `Dset` is symmetric.** From `d = u¹³ − v¹³` swap the witnesses:
 `-d = v¹³ − u¹³`. -/

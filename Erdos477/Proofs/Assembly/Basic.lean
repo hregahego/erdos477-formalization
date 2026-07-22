@@ -25,6 +25,7 @@
 import Erdos477.Defs
 import Erdos477.Proofs.Elementary.Basic
 import Erdos477.Proofs.Greedy.Basic
+import Erdos477.Proofs.BadShift.Basic
 
 namespace Erdos477
 
@@ -146,6 +147,33 @@ theorem erdos_477_of_criterion
   have h1 : a' = a := (Prod.ext_iff.mp hkey).1
   have h3 : m' = m := pow13_injective_proof (Prod.ext_iff.mp hkey).2
   subst h1; subst h3; rfl
+
+/-! ### The unconditional discharge
+
+`badShift_bound_proof` (Stage BadShift) is now available, so both conditionals
+above collapse to closed theorems. `erdos_477_proof` is the ONLY statement
+restated in `Erdos477/Solution.lean` and gated in `Erdos477/Discharge.lean` —
+its type is CHARACTER-EXACT the frozen `Erdos477.erdos_477`. -/
+
+/-- **P5.1 — `Bset` satisfies the criterion's hypothesis `H`**: the conditional
+`criterion_for_B_of_bound` fed with the bad-shift estimate. -/
+theorem criterion_for_B_proof :
+    ∀ C : Finset ℤ, (∀ c ∈ C, c ∉ Bset) →
+      ∃ b ∈ Bset, ∀ c ∈ C, c - b ∉ Dset :=
+  criterion_for_B_of_bound badShift_bound_proof
+
+/-- **Theorem 1.1 — HEADLINE** (statement CHARACTER-EXACT to the frozen
+`Erdos477.erdos_477` of `Erdos477/Theorems.lean`). The thirteenth powers have a
+tiling complement: there is `A ⊆ ℤ` such that every `n` is UNIQUELY `a + m¹³`
+with `a ∈ A`, `m ∈ ℤ` (uniqueness over the PAIR `(a, m)`).
+
+Carries BOTH permitted axioms: `heath_brown_diagonal_13` (through the
+Heath-Brown count in `badShift_bound_proof`) and
+`brownawell_masser_P1_four_term` (through the Route-A exclusion
+`no_linear_param_proof`). -/
+theorem erdos_477_proof :
+    ∃ A : Set ℤ, ∀ n : ℤ, ∃! p : ℤ × ℤ, p.1 ∈ A ∧ p.1 + p.2 ^ 13 = n :=
+  erdos_477_of_criterion criterion_for_B_proof
 
 /-- Guardrail (BLUEPRINT "Cheat watch (Stage Assembly)"): two DISTINCT
 `(a, m)`-representations of one fixed `n` contradict the headline `∃!`. -/

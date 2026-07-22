@@ -1,5 +1,14 @@
 /-
-  Stage Cofactor (Layer 1) — pow13_sub_pow13_factor, cofactor_lower_bound (κ = 1/2), pow13_gap.
+  Stage Cofactor (Layer 1) — the cofactor `Qcof`, and
+  pow13_sub_pow13_factor, cofactor_lower_bound (κ = 1/2), pow13_gap.
+
+  Defines `Qcof` (binding modeling decision, from `BLUEPRINT.md` Part −1 §2 /
+  `USER_NOTES.md`): the full 13-term homogeneous cofactor `∑_{i<13} u^i v^(12-i)`,
+  POLYMORPHIC over a `CommRing` so one definition serves the integer
+  factorization (C1) and the real `κ = 1/2` lower bound C2 (`push_cast`
+  commutes). `12 - i` is ℕ-truncated subtraction, exact on `range 13`.
+  `Qcof` is not needed to STATE the frozen headline `erdos_477`, so it does not
+  live in the frozen `Erdos477/Defs.lean`.
 
   C1 — `pow13_sub_pow13_factor_proof`: `u¹³ − v¹³ = (u − v) · Qcof u v` over ℤ,
        from the polymorphic `Qcof_mul_sub` (via `geom_sum₂_mul`).
@@ -17,6 +26,15 @@ import Erdos477.Defs
 namespace Erdos477
 
 open Finset
+
+/-! ### The cofactor -/
+
+/-- **D3 — `Qcof`.** The degree-12 homogeneous cofactor `Q(u,v)` appearing in the
+factorization `u ^ 13 − v ^ 13 = (u − v) · Q(u,v)`, as the 13-term sum
+`∑_{i=0}^{12} u ^ i · v ^ (12 − i)` (`12 − i : ℕ`, safe since `i ≤ 12`).
+Polymorphic over a `CommRing` so the same definition serves `ℤ` and `ℝ`. -/
+def Qcof {R : Type*} [CommRing R] (u v : R) : R :=
+  ∑ i ∈ Finset.range 13, u ^ i * v ^ (12 - i)
 
 /-! ### Support lemmas -/
 

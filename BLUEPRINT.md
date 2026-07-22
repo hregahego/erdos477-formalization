@@ -52,6 +52,49 @@ frozen, `Erdos477/Defs.lean` and `Erdos477/Theorems.lean` are **never edited
 again** during proving. Everything proved later lives in `Erdos477/Proofs/**`
 and may not change a single character of the frozen statements.
 
+> **★ AMENDMENT (2026-07-21) — the frozen surface was narrowed.** Part −1 §1–§3
+> below describes the ORIGINAL freeze: `Defs.lean` carrying D1–D5 and
+> `Theorems.lean` carrying ten `sorry` stubs. After the proof was complete
+> (`scripts/verify.sh --all` PASS), the frozen pair was reorganized, at the
+> user's request, to carry only what the FINAL theorem and the assumed
+> certificates need. **This box is authoritative where §1–§3 disagree with it;
+> read those sections as the historical SETUP record.**
+>
+> * **`Theorems.lean` now holds exactly ONE statement — `erdos_477`.** The nine
+>   intermediate statements (`Dset_neg_mem`, `pow13_injective`,
+>   `pow13_sub_pow13_factor`, `cofactor_lower_bound`, `pow13_gap`,
+>   `no_linear_param`, `badShift_bound`, `greedy_tiling`, `criterion_for_B`) are
+>   no longer frozen. Each is a working lemma of the stage that proves it,
+>   stated only there under its `<name>_proof` name — the intermediate
+>   statements now live *with* their proofs.
+> * **`Defs.lean` now holds only the two assumed-certificate axioms and the
+>   definitions their statements quote** — `IsNonsingularForm`,
+>   `IsParamOfDegLE`, `LiesOnParamOfDegLE`, `HBSolutionSet` (Axiom 1);
+>   `ordAtP1`, `IsSUnitP1`, `projHeightP1` (Axiom 2). The headline `erdos_477`
+>   is stated in raw ℤ-language and quotes no definition at all, so nothing
+>   exists in `Defs.lean` on its account. D1–D4 moved into the proof layer:
+>   `Bset`, `Dset` → `Proofs/Elementary/Basic.lean`; `Qcof` →
+>   `Proofs/Cofactor/Basic.lean`; `Sset` → `Proofs/BadShift/Basic.lean`. Each
+>   carries its binding modeling decision (§2 below) verbatim in that file's
+>   header; **the decisions themselves are unchanged and still binding.**
+> * `Solution.lean` restates only `erdos_477` (`:= erdos_477_proof`, Stage
+>   Assembly); `Discharge.lean` gates only `erdos_477`; `verify.sh`'s
+>   `ALL_THEOREMS` is that single name; `scripts/frozen.sha256` was recomputed
+>   for the new frozen pair.
+> * `Proofs/Assembly/Basic.lean` gained `criterion_for_B_proof` and
+>   `erdos_477_proof` (previously composed inline in `Solution.lean`), so the
+>   proof layer is self-contained, and it now imports `Proofs/BadShift/Basic`.
+>
+> The mathematics, the axiom statements, and the dependency path are untouched:
+> `#print axioms Erdos477.Solution.erdos_477` still shows exactly
+> `{propext, Classical.choice, Quot.sound}` plus BOTH permitted axioms.
+>
+> *(Separately, and earlier: §2's D5 and the Route-B references throughout this
+> file were superseded during SETUP by `USER_NOTES.md` — the development
+> assumes TWO axioms, both stated in the full generality of the paper's
+> Theorems 2.1/2.2, and `no_linear_param` is proved by the paper's Route A. See
+> `Erdos477/Defs.lean` for the axioms as actually frozen.)*
+
 > **★ SETUP PREREQUISITE — the Heath-Brown axiom must be permitted.** This proof
 > assumes **exactly one** deep analytic result as a Lean `axiom`:
 > `Erdos477.heath_brown_diagonal_13` (Heath-Brown 2009, Theorem 2, specialized —
@@ -83,17 +126,19 @@ example. Then reshape the generated tree into the frozen layout:
 ```
 erdos477-formalization/
   Erdos477/
-    Defs.lean                     -- FROZEN: B, D, Qcof, Sset + the HB axiom
-    Theorems.lean                 -- FROZEN: the 10 frozen statements as `sorry`
+    Defs.lean                     -- FROZEN: the axioms + the defs they quote  [amended]
+    Theorems.lean                 -- FROZEN: the headline `erdos_477` as `sorry` [amended]
     Proofs/
-      Elementary/Basic.lean       -- Layer 0: L0.1–L0.6 (pow13_injective, Dset_neg_mem)
-      Cofactor/Basic.lean         -- Layer 1: L1.1–L1.2 (cofactor_lower_bound, pow13_gap, factor)
-      ParamExclusion/Basic.lean   -- Layer 2: L2.1 (no_linear_param, Route B)
+      Elementary/Basic.lean       -- Layer 0: Bset, Dset + L0.1–L0.6 (pow13_injective, Dset_neg_mem)
+      Cofactor/Basic.lean         -- Layer 1: Qcof + L1.1–L1.2 (cofactor_lower_bound, pow13_gap, factor)
+      ParamExclusion/Basic.lean   -- Layer 2: L2.1 support toolbox (orders/S-units/heights on ℙ¹)
+      ParamExclusion/Degenerate.lean -- Layer 2: Route-A Cases C/D (elementary ℤ[T] half)
+      ParamExclusion/Spine.lean   -- Layer 2: the Route-A spine (no_linear_param_proof)
       Greedy/Basic.lean           -- Layer 4: L4.1 (greedy_tiling) — self-contained
-      BadShift/Basic.lean         -- Layer 3: P3.1 (badShift_bound) — uses the HB axiom
+      BadShift/Basic.lean         -- Layer 3: Sset + P3.1 (badShift_bound) — uses the HB axiom
       Assembly/Basic.lean         -- Layer 5: P5.1 (criterion_for_B) + erdos_477
-    Discharge.lean                -- `@Frozen = @Proof := rfl` for every frozen name
-    Solution.lean                 -- restates each frozen theorem in Erdos477.Solution, proven
+    Discharge.lean                -- `@Frozen = @Proof := rfl` for the frozen name
+    Solution.lean                 -- restates the frozen theorem in Erdos477.Solution, proven
   Erdos477.lean                   -- imports everything
   SKETCH.md                       -- the problem + NL proof sketch (math source of truth)
   BLUEPRINT.md                    -- this file
@@ -108,14 +153,22 @@ erdos477-formalization/
 ```
 
 All support declarations live in `namespace Erdos477` (never shadow a frozen
-name). `Solution.lean` re-exposes each frozen theorem as
-`Erdos477.Solution.<name>` after it is proven; `Discharge.lean` machine-checks
-that each proof has *exactly* the frozen type (`@Frozen = @Proof := rfl`).
+name). `Solution.lean` re-exposes the frozen theorem as
+`Erdos477.Solution.erdos_477` after it is proven; `Discharge.lean` machine-checks
+that the proof has *exactly* the frozen type (`@Frozen = @Proof := rfl`).
 
 ### 2. Freeze the Definitions (`Defs.lean`)
 
 Define every object the proof needs, in dependency order. **Make decisive
 modeling choices here and write them down — they cannot change later.**
+
+> **Amended (see the box above).** The modeling decisions D1–D4 below are
+> unchanged and still binding, but the declarations no longer live in
+> `Defs.lean`: `Bset`/`Dset` are in `Proofs/Elementary/Basic.lean`, `Qcof` in
+> `Proofs/Cofactor/Basic.lean`, `Sset` in `Proofs/BadShift/Basic.lean`. Only the
+> two assumed-certificate axioms and the definitions their statements quote stay
+> frozen in `Defs.lean`. D5 below also shows the SETUP-era conditional HB axiom,
+> superseded by the general Theorem 2.2 form now in `Defs.lean`.
 
 **D1. `Bset : Set ℤ := {b | ∃ m : ℤ, b = m ^ 13}`** — the thirteenth powers.
 - *MODELING DECISION.* A `Set ℤ` comprehension, not a `Finset`/`Subtype` (`B` is
@@ -204,6 +257,13 @@ Write the **COMPLETE** list of 10 frozen statements, all `:= sorry`, then freeze
 the file. Each renders a claim of `SKETCH.md` faithfully and minimally, with a
 stable binding name (referenced by `verify.sh`, `Discharge.lean`, `Solution.lean`,
 `init.py` — these names cannot drift).
+
+> **Amended (see the box above).** Only the last of the ten, `erdos_477`, is
+> frozen in `Theorems.lean` today. The other nine are the working lemmas
+> `<name>_proof` of the stages that prove them, stated only there; the
+> statements below remain the character-exact types those `_proof` declarations
+> carry, and the sketch mapping table that follows is still the sketch↔Lean
+> index. `verify.sh`'s `ALL_THEOREMS` lists the single frozen name.
 
 ```lean
 -- L0.2 — D is symmetric.
@@ -407,7 +467,7 @@ technique — but the **frozen** `badShift_bound` statement stays in the `T^{5/6
 
 ---
 
-## Part 1 — New objects to define (all in `Defs.lean`, frozen)
+## Part 1 — New objects to define
 
 | #  | Object | Role |
 | -- | ------ | ---- |
@@ -418,7 +478,12 @@ technique — but the **frozen** `badShift_bound` statement stays in the `T^{5/6
 | D5 | `heath_brown_diagonal_13` (`axiom`) | the one assumed analytic count (Heath-Brown 2009) |
 
 Modeling decisions for each are recorded in Part −1 §2; later stages may
-*characterize* these but may never redefine or silently swap them.
+*characterize* these but may never redefine or silently swap them. Since the
+2026-07-21 amendment, D1–D4 are declared in the proof layer (`Bset`/`Dset` in
+`Proofs/Elementary/Basic.lean`, `Qcof` in `Proofs/Cofactor/Basic.lean`, `Sset`
+in `Proofs/BadShift/Basic.lean`) and only D5 — now the two axioms of the paper's
+Theorems 2.1/2.2, with the definitions their statements quote — is frozen in
+`Defs.lean`.
 
 ---
 
@@ -579,11 +644,20 @@ Upgrade to `(a,m)`: existence since `b = m¹³`; uniqueness since `a = a'` and
 In `Erdos477/Solution.lean`, restate each frozen theorem **verbatim** in
 `namespace Erdos477.Solution` and set it `:= <name>_proof` (the sorry-free
 declaration from `Proofs/**`). In `Erdos477/Discharge.lean`, for each frozen name
-write `example : @Erdos477.<name> = @Erdos477.Solution.<name>_proof := rfl` — this
+write `example : @Erdos477.<name> = @Erdos477.<name>_proof := rfl` — this
 compiles **iff** the proof has *exactly* the frozen proposition (machine-checked
 no-drift). `verify.sh` checks both modules build and that
 `#print axioms Erdos477.Solution.<name>` is within the allowlist for every frozen
 name.
+
+> **Amended (see the box in Part −1).** "Each frozen theorem" is now the single
+> name `erdos_477`: `Solution.lean` holds `erdos_477 := erdos_477_proof` and
+> `Discharge.lean` holds the two gates
+> `@Erdos477.erdos_477 = @Erdos477.erdos_477_proof := rfl` and
+> `@Erdos477.erdos_477 = @Erdos477.Solution.erdos_477 := rfl`. The intermediate
+> `<name>_proof` lemmas are consumed directly by the proofs downstream of them,
+> so they need no restatement and no gate — nothing can drift from a statement
+> that exists in exactly one place.
 
 ---
 
@@ -658,7 +732,11 @@ follow.
 - **Don't touch the frozen files after SETUP.** `Defs.lean`/`Theorems.lean` are
   byte-frozen (pinned in `scripts/frozen.sha256`). A missing *definition* belongs
   in a `Proofs/**` support file; a *statement* that seems wrong means a modeling
-  bug to fix **before** re-freezing, not a hypothesis to bolt on.
+  bug to fix **before** re-freezing, not a hypothesis to bolt on. (The
+  2026-07-21 amendment in Part −1 is the one sanctioned exception: a
+  user-directed narrowing of the frozen surface, performed *after* the proof was
+  complete, which moved declarations without altering a single proposition, and
+  re-pinned the SHAs.)
 
 - **Keep `#print axioms` clean.** Every solved theorem depends only on
   `{propext, Classical.choice, Quot.sound}` **plus** the single permitted

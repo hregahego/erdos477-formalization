@@ -1,3 +1,3 @@
-# pins recorded by SETUP after Defs.lean/Theorems.lean were frozen
-3272187fb18b42fee69abc56b4e10788048dac42c495ee2c796fadbf0d6f344b  Erdos477/Defs.lean
-662e1ed01b9e0d776825b35c15a7a829a1ddd5e261883a93435dc27400b51b58  Erdos477/Theorems.lean
+# pins recorded after the Defs.lean/Theorems.lean reorganization (frozen pair)
+11dd22e681cca1e716179fb1048d2e8c48cbb5bdcfb36150165f0dc1336752d1  Erdos477/Defs.lean
+a2740671b9c390eb33bde410a32a35d2f2738ee456b3ad64bd4b7ba648a19928  Erdos477/Theorems.lean

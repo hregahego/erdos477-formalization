@@ -49,15 +49,6 @@ set -euo pipefail
 PROJECT="Erdos477"
 # The frozen theorem names (= <PROJECT>.Solution.<name> = <PROJECT>.<name>).
 ALL_THEOREMS=(
-    "Dset_neg_mem"
-    "pow13_injective"
-    "pow13_sub_pow13_factor"
-    "cofactor_lower_bound"
-    "pow13_gap"
-    "no_linear_param"
-    "badShift_bound"
-    "greedy_tiling"
-    "criterion_for_B"
     "erdos_477"
 )
 # ============================================================================

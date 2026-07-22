@@ -1,7 +1,8 @@
 /-
   Erdős 477 — "The thirteenth powers have a tiling complement in ℤ".
 
-  FROZEN definitions and assumed-certificate axioms.
+  FROZEN assumed-certificate axioms, and the support definitions their
+  statements quote.
 
   This file is BYTE-FROZEN after SETUP (pinned in `scripts/frozen.sha256`).
   Later stages may *characterize* these objects with support lemmas in
@@ -9,20 +10,21 @@
   character here. See `BLUEPRINT.md` Part −1 §2 and `USER_NOTES.md` for the
   binding modeling decisions.
 
-  Modeling decisions (binding; do not re-derive):
-    * `Bset`  — thirteenth powers as a `Set ℤ` carved by an existential, image
-      form `b = m ^ 13`. Infinite; no positivity, no `b ≠ 0`. Exponent `13 : ℕ`.
-    * `Dset`  — the difference set encoded DIRECTLY as `u ^ 13 - v ^ 13`, NOT as
-      the Minkowski difference `Bset - Bset`. Symmetry is a lemma (frozen
-      `Dset_neg_mem`), not baked in; the bridge `Dset_eq_Bset_sub` lives in
-      `Proofs/Assembly`.
-    * `Qcof`  — the full 13-term homogeneous cofactor `∑_{i<13} u^i v^(12-i)`,
-      POLYMORPHIC over a `CommRing` so one definition serves the integer
-      factorization and the real `κ = 1/2` lower bound (`push_cast` commutes).
-      `12 - i` is ℕ-truncated subtraction, exact on `range 13`.
-    * `Sset`  — bad-shift set as a `Finset` (`.card` available), realised as a
-      `filter` over the TWO-SIDED interval `Finset.Icc (-T) T` (the `2T+1` count
-      is load-bearing). Predicate `t ^ 13 - c ∈ Dset` is classical/noncomputable.
+  SCOPE. This file carries ONLY what the frozen material needs:
+    * the two assumed-certificate axioms (below), and
+    * the definitions their statements quote — `IsNonsingularForm`,
+      `IsParamOfDegLE`, `LiesOnParamOfDegLE`, `HBSolutionSet` for Axiom 1;
+      `ordAtP1`, `IsSUnitP1`, `projHeightP1` for Axiom 2.
+  The frozen headline `erdos_477` of `Erdos477/Theorems.lean` is stated in raw
+  ℤ-language (`∃ A : Set ℤ, ∀ n, ∃! p : ℤ × ℤ, p.1 ∈ A ∧ p.1 + p.2 ^ 13 = n`)
+  and quotes NO definition at all — so nothing here exists on its account.
+
+  Every other object of the development is a working definition of the proof
+  layer and lives with the proofs that use it (its binding modeling decision
+  travels with it, verbatim, in that file's header):
+    * `Bset`, `Dset` — `Erdos477/Proofs/Elementary/Basic.lean`
+    * `Qcof`         — `Erdos477/Proofs/Cofactor/Basic.lean`
+    * `Sset`         — `Erdos477/Proofs/BadShift/Basic.lean`
 
   Assumed-certificate axioms (permitted by `USER_NOTES.md`; recorded in
   `scripts/ALLOWED_AXIOMS.txt`). Per `USER_NOTES.md`, BOTH are stated in the
@@ -46,30 +48,6 @@ import Mathlib
 namespace Erdos477
 
 open scoped BigOperators Classical
-
-/-! ## D1–D4 — the objects of the development -/
-
-/-- **D1 — `Bset`.** The set of thirteenth powers `{ m ^ 13 : m ∈ ℤ }` — the set
-being tiled. Carved by an existential in image form `b = m ^ 13`; infinite. -/
-def Bset : Set ℤ := {b | ∃ m : ℤ, b = m ^ 13}
-
-/-- **D2 — `Dset`.** The difference set `B − B`, encoded directly as differences
-of two thirteenth powers `u ^ 13 − v ^ 13` (NOT the Minkowski difference). -/
-def Dset : Set ℤ := {d | ∃ u v : ℤ, d = u ^ 13 - v ^ 13}
-
-/-- **D3 — `Qcof`.** The degree-12 homogeneous cofactor `Q(u,v)` appearing in the
-factorization `u ^ 13 − v ^ 13 = (u − v) · Q(u,v)`, as the 13-term sum
-`∑_{i=0}^{12} u ^ i · v ^ (12 − i)` (`12 − i : ℕ`, safe since `i ≤ 12`).
-Polymorphic over a `CommRing` so the same definition serves `ℤ` and `ℝ`. -/
-def Qcof {R : Type*} [CommRing R] (u v : R) : R :=
-  ∑ i ∈ Finset.range 13, u ^ i * v ^ (12 - i)
-
-/-- **D4 — `Sset`.** The bad-shift set `S_c(T) = { t : |t| ≤ T ∧ t ^ 13 − c ∈ D }`,
-as a `Finset` obtained by filtering the two-sided interval `Finset.Icc (-T) T`
-(hence `2T + 1` candidate shifts). The membership predicate is not decidable
-constructively — classical, hence `noncomputable`. -/
-noncomputable def Sset (c T : ℤ) : Finset ℤ :=
-  (Finset.Icc (-T) T).filter (fun t => t ^ 13 - c ∈ Dset)
 
 /-! ## Support definitions for Axiom 1 (paper's Theorem 2.2, Heath-Brown)
 
